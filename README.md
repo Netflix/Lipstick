@@ -1,0 +1,4 @@
+Lipstick
+========
+
+Pig Visualization framework
