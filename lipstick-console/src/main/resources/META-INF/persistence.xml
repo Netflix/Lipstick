@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="http://java.sun.com/xml/ns/persistence"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd"
+	version="2.0">
+
+	<persistence-unit name="pu">
+		<provider>org.hibernate.ejb.HibernatePersistence</provider>
+        <class>com.netflix.lipstick.model.P2jCounters</class>
+        <class>com.netflix.lipstick.model.P2jJobStatus</class>
+        <class>com.netflix.lipstick.model.P2jPlan</class>
+        <class>com.netflix.lipstick.model.P2jPlanPackage</class>
+        <class>com.netflix.lipstick.model.P2jPlanStatus</class>
+        <class>com.netflix.lipstick.model.P2jScripts</class>
+        <class>com.netflix.lipstick.model.P2jSampleOutput</class>
+        <class>com.netflix.lipstick.model.P2jSampleOutputList</class>
+
+        <class>com.netflix.lipstick.model.operators.P2jLOCogroup</class>
+        <class>com.netflix.lipstick.model.operators.P2jLOFilter</class>
+        <class>com.netflix.lipstick.model.operators.P2jLOJoin</class>
+        <class>com.netflix.lipstick.model.operators.P2jLOLimit</class>
+        <class>com.netflix.lipstick.model.operators.P2jLOLoad</class>
+        <class>com.netflix.lipstick.model.operators.P2jLOSplitOutput</class>
+        <class>com.netflix.lipstick.model.operators.P2jLOStore</class>
+        <class>com.netflix.lipstick.model.operators.P2jLogicalRelationalOperator</class>
+
+        <class>com.netflix.lipstick.model.operators.elements.JoinExpression</class>
+        <class>com.netflix.lipstick.model.operators.elements.SchemaElement</class>
+		<properties>
+			<!-- Auto detect annotation model classes -->
+			<property name="hibernate.archive.autodetection" value="class" />
+
+			<!-- Datasource -->
+			<property name="hibernate.hbm2ddl.auto" value="create-drop"/>
+			
+			<property name="hibernate.connection.url" value="jdbc:hsqldb:mem:unit-testing-jpa" />
+			<property name="hibernate.connection.driver_class" value="org.hsqldb.jdbcDriver" />
+			<property name="hibernate.dialect" value="org.hibernate.dialect.HSQLDialect" />
+			<property name="hibernate.hbm2ddl.auto" value="create-drop" />
+			<property name="hibernate.show_sql" value="true" />
+			<property name="hibernate.connection.username" value="sa" />
+			<property name="hibernate.connection.password" value="" />
+			
+<!-- HSQL Db Syntax
+  		 	
+			<property name="hibernate.connection.url" value="jdbc:hsqldb:mem:unit-testing-jpa" />
+			<property name="hibernate.connection.driver_class" value="org.hsqldb.jdbcDriver" />
+			<property name="hibernate.dialect" value="org.hibernate.dialect.HSQLDialect" />
+			<property name="hibernate.hbm2ddl.auto" value="create-drop" />
+			<property name="hibernate.connection.username" value="sa" />
+			<property name="hibernate.connection.password" value="" />
+			-->
+			
+<!-- MY SQL Syntax
+  
+			<property name="hibernate.dialect" value="org.hibernate.dialect.MySQLDialect" />
+			<property name="hibernate.connection.driver_class" value="com.mysql.jdbc.Driver" />
+			<property name="hibernate.connection.username" value="pigviz" />
+			<property name="hibernate.connection.password" value="pigviz" />
+			<property name="hibernate.connection.url" value="jdbc:mysql://localhost/pigviz" />
+
+-->
+		</properties>
+	</persistence-unit>
+</persistence>

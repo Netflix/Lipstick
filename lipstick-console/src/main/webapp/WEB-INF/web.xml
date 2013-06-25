@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+	<!--
+		Use this definition if using a Java EE 6 container This also stops
+		Eclipse from complaining that 3.0 is not a valid version <web-app
+		version="3.0" xmlns="http://java.sun.com/xml/ns/javaee"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation=" http://java.sun.com/xml/ns/javaee
+		http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd">
+	-->
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+	version="2.5">
+	<!--  <welcome-file-list>
+		<welcome-file>index.html</welcome-file>
+	</welcome-file-list> -->
+	<servlet> 
+        <servlet-name>Pig2Json</servlet-name> 
+        <servlet-class> 
+            com.netflix.dse.pig2json.web.Pig2JsonServlet
+        </servlet-class> 
+        <load-on-startup>1</load-on-startup> 
+    </servlet> 
+    
+    <servlet-mapping> 
+        <servlet-name>Pig2Json</servlet-name> 
+        <url-pattern>/p2j/*</url-pattern> 
+    </servlet-mapping> 
+    
+  <session-config>
+    <session-timeout>90</session-timeout>
+  </session-config>
+</web-app>

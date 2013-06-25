@@ -1,0 +1,155 @@
+/* Override some defaults */
+.container > footer p {
+    text-align: center; /* center align it with the container */
+}
+
+/* The white background content wrapper */
+.content {
+    background-color: #fff;
+    padding: 20px;
+    margin: 0 -20px; /* negative indent the amount of the padding to maintain the grid system */
+    -webkit-border-radius: 0 0 6px 6px;
+    -moz-border-radius: 0 0 6px 6px;
+    border-radius: 0 0 6px 6px;
+    -webkit-box-shadow: 0 1px 2px rgba(0,0,0,.15);
+    -moz-box-shadow: 0 1px 2px rgba(0,0,0,.15);
+    box-shadow: 0 1px 2px rgba(0,0,0,.15);
+    overflow: hidden;
+}
+
+/* Page header tweaks */
+.page-header {
+    background-color: #f5f5f5;
+    padding: 10px 10px 10px;
+    margin: -20px -20px 10px;
+    text-transform: capitalize !important;
+    border-top: 1px solid #DDD;
+}
+
+#logo {
+    background: transparent url(../img/netflix_logo_small.png) no-repeat 20px 9px;
+    height: 20px;
+    width: 140px;
+}
+
+#logo_gif {
+    background: transparent url(../img/forklift.2.gif) no-repeat;
+    height: 40px;
+    width: 180px;
+}
+
+.tablerow {
+    margin: auto;
+    padding-bottom: 20px;
+}
+
+table th, table td {
+    padding: 5px 5px 3px;
+}
+
+#logo2 {
+    position: absolute;
+    top: 100px;
+    left: 30px;
+    opacity:0.1; 
+}
+
+#pig-graph {
+    -webkit-transform-origin: 0% 0%;
+    transform-origin: 0% 0%;
+    margin-top: 75px;
+}
+
+.terminal {
+    background-color: #7F007F;
+}
+
+.snap-update {
+    padding-left: 10px;
+    color: #00CD64;
+}
+.progress {
+    overflow: hidden;
+    height: 18px;
+    margin-bottom: 0px;
+    background-color: #f7f7f7;
+    background-image: -moz-linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-image: -ms-linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f5f5f5), to(#f9f9f9));
+    background-image: -webkit-linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-image: -o-linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-image: linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-repeat: repeat-x;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#f5f5f5', endColorstr='#f9f9f9', GradientType=0);
+    -webkit-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    -moz-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    -webkit-border-radius: 4px; 
+    -moz-border-radius: 4px; 
+    border-radius: 4px; 
+}
+
+.well {
+    padding: 0px;
+    border: 3px solid #f3f3f3;
+    background-color: #ffffff;
+}
+
+.CodeMirror-gutter {
+    border-right: 1px solid #dddddd;
+    background-color: #f3f3f3;
+}
+
+.CodeMirror-scroll {
+    border: 1px solid #dddddd;
+}
+
+/*
+svg {
+    border: 1px solid #dddddd;
+}
+*/
+
+#node-menu {
+    width: 300px;
+    position: absolute;
+    top: -1000px;
+    left: -1000px;
+    z-index: 1030;
+}
+
+.page {
+    display: none;
+}
+
+#zoom-menu {
+    padding-top: 7px;
+}
+
+#graph-menu {
+    position: fixed;
+    right: 0;
+    left: 25;
+    z-index: 1000;
+    margin-bottom: 0;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 4px;
+    padding: 10px;
+    width: 250px;
+    background: whitesmoke;
+    box-shadow: 1px 1px 5px grey;
+}
+
+#mr-job-details {
+    display: none;
+    position: absolute;
+    top: 100px;
+    left: 272px;
+    z-index: 1030;
+    padding: 10px;
+    background: whitesmoke;
+    border: 1px;
+    border-style: solid;
+    border-radius: 4px;
+}

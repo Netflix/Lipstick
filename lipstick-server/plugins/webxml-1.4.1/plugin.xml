@@ -1,0 +1,13 @@
+<plugin name='webxml' version='1.4.1' grailsVersion='1.2 &gt; *'>
+  <author>Roger Cass</author>
+  <authorEmail>roger.cass@byu.net</authorEmail>
+  <title>WebXmlConfig</title>
+  <description>Add additional Features to your web.xml, such as Filters, Config Listeners or Context Parameter definitions</description>
+  <documentation>http://grails.org/plugin/webxml</documentation>
+  <type>WebxmlGrailsPlugin</type>
+  <resources>
+    <resource>DefaultWebXmlConfig</resource>
+  </resources>
+  <dependencies />
+  <behavior />
+</plugin>

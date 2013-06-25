@@ -1,0 +1,32 @@
+{
+    "endTime": null, 
+    "id": 0, 
+    "jobStatusMap": {
+        "job_201302111846_63797": {
+            "counters": {
+                "FileSystemCounters": {
+                "counters": {
+                    "FILE_BYTES_WRITTEN": 84187, 
+                    "HDFS_BYTES_READ": 5450, 
+                    "HDFS_BYTES_WRITTEN": 17097, 
+                    "S3N_BYTES_READ": 2252959
+                }
+                }
+            }, 
+            "id": 0, 
+            "isComplete": false, 
+            "isSuccessful": false, 
+            "jobId": "job_201302111846_63797", 
+            "jobName": "PigLatin:stingstats.pig", 
+            "mapProgress": 0.05072874, 
+            "reduceProgress": 0.0, 
+            "scope": "scope-33", 
+            "totalMappers": 9, 
+            "totalReducers": 0, 
+            "trackingUrl": "http://ip-10-102-29-203.ec2.internal:9100/jobdetails.jsp?jobid=job_201302111846_63797"
+        }
+    }, 
+    "progress": 2, 
+    "startTime": null, 
+    "statusText": null
+}

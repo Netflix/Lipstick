@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Toss Boss</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <!-- Le styles -->
+        <link href="./resources/css/bootstrap.css" rel="stylesheet">
+        <link href="./resources/css/codemirror.css" rel="stylesheet">
+        <link href="./resources/css/bootstrap-responsive.css" rel="stylesheet">
+        <link href="./resources/css/tossboss.css" rel="stylesheet">
+        <style>
+            body {
+                background-color: #ffffff;
+                font-size: 1em;
+            }
+            .align-right, .table .align-right {
+                text-align: right;
+            }
+            #code-editor .highlight {
+                background-color: yellow;
+            }
+            .container.padded {
+                padding-top: 60px;
+            }
+        </style>
+
+        <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+        <!--[if lt IE 9]>
+        <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+
+    </head>
+    <body>
+        <div class="navbar navbar-fixed-top">
+            <div class="navbar-inner">
+                <div class="container">
+                    <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </a>
+                    <!--<div class="brand" id="logo"></div>-->
+                    <div class="nav-collapse">
+                        <ul class="nav">
+                            <li><a href="#">2013-3</a></li>
+                            <li><a href="#history">History</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container padded" id="history" style="display: none;">
+            <h3>History</h3>
+            <div class="accordion" id="past-scripts">
+            </div>
+        </div>
+
+        <div class="container padded" id="index">
+            <div class="row">
+                <div class="navbar-form">
+                    <button class="btn btn-small" id="draw-graph" data-loading-text="<i class='icon icon-eye-close'></i> Drawing......">
+                        <i class="icon icon-eye-open"></i> Draw graph
+                    </button>
+                    <button class="btn btn-small pull-right" id="remove-highlights">
+                        <i class="icon icon-remove-circle"></i> Remove highlighting
+                    </button>
+                </div>
+                <div class="controls well" id="code-editor"> </div>
+            </div>
+            <h4>Parameters</h4>
+            <div id="parameters">
+                <form class="form-horizontal">
+                </form>
+            </div>
+        </div>
+
+    <script src="./resources/js/jquery-1.8.2.min.js"></script>
+    <script src="./resources/js/bootstrap.js"></script>
+    <script src="./resources/js/codemirror.js"></script>
+    <script src="./resources/js/hive.js"></script>
+    <script src="./resources/js/lodash.min.js"></script>
+    <script src="./resources/js/backbone-min.js"></script>
+    <script src="./resources/js/tossboss-main.js"></script>
+    </body>
+</html>

@@ -1,0 +1,51 @@
+Lipstick
+Copyright 2013 Netflix, Inc.
+
+------------------------------------------------
+Attribution for JavaScript Libraries and Plugins
+------------------------------------------------
+
+jQuery JavaScript Library provided by the jQuery Foundation
+http://jquery.com/
+License: MIT License (http://jquery.org/license)
+Copyright 2005, 2013 jQuery Foundation, Inc. and other contributors
+
+Bootstrap front-end framework provided by Mark Otto, Jacob Thornton, and Twitter
+http://twitter.github.io/bootstrap/index.html
+License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+Copyright 2012 Twitter, Inc
+
+CodeMirror provided by Marijn Haverbeke
+http://codemirror.net/
+License: MIT License (http://codemirror.net/LICENSE)
+Copyright 2013 Marijn Haverbeke
+
+Fuel UX provided by ExactTarget
+http://exacttarget.github.io/fuelux/
+License: MIT License (https://github.com/ExactTarget/fuelux/blob/master/COPYING)
+Copyright 2012 ExactTarget
+
+D3.js JavaScript library provided by Michael Bostock
+http://d3js.org/
+License: BSD License (https://github.com/mbostock/d3/blob/master/LICENSE)
+Copyright 2013 Michael Bostock
+
+Lo-Dash JavaScript library provided by John-David Dalton, Kit Cambridge, and Mathias Bynens
+http://lodash.com/
+License: https://github.com/bestiejs/lodash/blob/master/LICENSE.txt
+Copyright 2012-2013 The Dojo Foundation
+
+Transit provided by Rico Sta. Cruz
+http://ricostacruz.com/jquery.transit/
+License: MIT License (http://opensource.org/licenses/mit-license.php)
+Copyright 2011-2013 Rico Sta. Cruz
+
+Backbone.js provided by contributors (https://github.com/documentcloud/backbone/graphs/contributors)
+http://backbonejs.org/
+License: MIT License (https://github.com/documentcloud/backbone/blob/master/LICENSE)
+Copyright 2010-2013 Jeremy Ashkenas, DocumentCloud
+
+RequireJS provided by James Burke
+http://requirejs.org/
+License: MIT License (https://github.com/jrburke/requirejs/blob/master/LICENSE)
+Copyright 2010-2011 The Dojo Foundation

@@ -1,0 +1,192 @@
+import nl.javadude.gradle.plugins.license.License
+import java.text.SimpleDateFormat
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath('nl.javadude.gradle.plugins:license-gradle-plugin:0.6.0') {
+            exclude module: 'guava'
+        }
+        classpath 'com.google.guava:guava:12.0'
+    }
+}
+
+allprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+    version = '0.3'
+}
+
+apply plugin: 'license'
+
+task(licensesAll, type: License) {
+    check = false
+    skipExistingHeaders = true
+    source '.'
+    include 'lipstick-console/src/**/*.java'
+    include 'lipstick-server/grails-app/**'
+    include 'lipstick-server/src/groovy/**/*.groovy'
+    include 'lipstick-server/web-app/js/tossboss*.js'
+    include 'lipstick-server/web-app/tossboss*/js/*.js'
+    include 'lipstick-server/web-app/*.html'
+    include 'lipstick-server/web-app/tossboss*/*.html'
+    include 'lipstick-server/web-app/tossboss*/css/*.css'
+    include 'scripts/**'
+    include 'test/integration/**'
+    include 'test/unit/**'
+    include 'lipstick-app/css/**'
+    include 'lipstick-app/js/**'
+    exclude '**/*.json'
+}
+
+license {
+    header rootProject.file('codequality/HEADER')
+    ext.year = Calendar.getInstance().get(Calendar.YEAR)
+    mapping {
+        groovy='SLASHSTAR_STYLE'
+        gsp='DYNASCRIPT_STYLE'
+    }
+}
+
+defaultTasks 'buildRelease'
+
+task('buildRelease', type:Copy, dependsOn: ['clean-expanded', ':lipstick-server:war']) {
+    group = "Lipstick"
+    description = 'Build lipstick-server and lipstick-console and copy the artifacts to the build dir.'
+    from ('./lipstick-server/target') {
+        include '*.war'
+    }
+    from ('./lipstick-console/build/libs') {
+        include '*.jar'
+    }
+    into ('build')
+}
+
+task('clean-expanded', type:Delete) {
+    delete 'build'
+}
+
+
+project(':lipstick-server') {
+    task('clean', type:Exec) {
+        commandLine './grailsw', 'clean'
+    }
+    task('clean-lib', type:Delete) {
+        ant.delete (includeEmptyDirs: 'true', quiet: 'true') {
+            fileset(dir: file('lipstick-server/lib'), includes: /*'lipstick-console*.jar'*/'*.jar')
+        }
+    }
+    task('import-jar', type:Copy, dependsOn: [':lipstick-console:jar','clean-lib']) {
+        from ('../lipstick-console/build/libs') {
+            include '*.jar'
+        }
+        into ('lib')
+    }
+    task('debug', type:Exec, dependsOn: 'import-jar') {
+        group = "Lipstick"
+        description = 'Run lipstick-server in debug mode.'
+        commandLine './grailsw', 'run-app'
+    }
+    task('debug-war', type:Exec, dependsOn: ':lipstick-server:import-jar') {
+        commandLine './grailsw', 'debug', 'war'
+    }
+    task('war', type:Exec, dependsOn: ':lipstick-server:import-jar') {
+        group = "Lipstick"
+        description = 'Build a war for release.'
+        commandLine './grailsw', 'set-version', version
+        commandLine './grailsw', 'prod', 'war'
+    }
+    task('build', dependsOn: 'war')
+}
+
+project(':lipstick-console') {
+    apply plugin: 'java'
+    apply plugin: 'eclipse'
+
+    configurations {
+        includeInJar
+    }
+
+    dependencies {
+        includeInJar 'dk.brics.automaton:automaton:1.11-8'
+        includeInJar 'org.codehaus.jackson:jackson-mapper-asl:1.9.10'
+        includeInJar 'com.google.guava:guava:12.0'
+        includeInJar 'org.kohsuke:graphviz-api:1.1'
+        includeInJar 'org.apache.commons:commons-io:1.3.2'
+        includeInJar 'log4j:log4j:1.2.16'
+        includeInJar 'joda-time:joda-time:1.6'
+        includeInJar 'com.googlecode.jatl:jatl:0.2.2'
+        includeInJar 'com.sun.jersey:jersey-client:1.8'
+        includeInJar 'com.sun.jersey:jersey-core:1.8'
+        includeInJar 'jline:jline:0.9.94'
+        includeInJar 'org.antlr:antlr:3.4'
+        includeInJar 'org.antlr:antlr-runtime:3.4'
+
+        if(project.hasProperty('withoutPig')) {
+            println "building jar without Pig"
+            compile('org.apache.pig:pig:0.11.1') {
+                exclude module: 'hsqld'
+            }
+        } else {
+            includeInJar('org.apache.pig:pig:0.11.1') {
+                exclude module: 'hsqld'
+            }
+        }
+
+        if(project.hasProperty('withHadoop')) {
+            println "building jar with Hadoop"
+            includeInJar 'org.apache.hadoop:hadoop-core:1.1.0'
+        } else {
+            compile 'org.apache.hadoop:hadoop-core:1.1.0'
+        }
+
+        compile 'org.hibernate:hibernate-entitymanager:3.6.0.Final'
+
+        testCompile 'org.hsqldb:hsqldb:2.2.8'
+        testCompile 'org.testng:testng:6.7'
+        testCompile 'org.mockito:mockito-core:1.9.5'
+        testCompile 'org.powermock:powermock-api-mockito:1.5'
+
+        configurations.compile.extendsFrom(configurations.includeInJar)
+    }
+
+    test {
+        useTestNG()
+    }
+
+    jar {
+        it.dependsOn ':clean-expanded', 'buildinfo'
+        from { configurations.includeInJar.collect { it.isDirectory() ? it : zipTree(it) } }
+        manifest { attributes 'Main-Class': 'com.netflix.lipstick.Main' }
+    }
+
+    task('buildinfo', type:Copy) {
+        group = "Lipstick"
+        description = 'put the build information into lipstick-build.txt'
+        from ('./buildinfo') {
+            include 'lipstick_build.txt'
+        }
+        def df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
+        def ts =  df.format(new Date())
+        def commitid = ''
+        new ByteArrayOutputStream().withStream { os ->
+            def res = exec() {
+                executable = 'git'
+                args = ['rev-parse','HEAD']
+                ignoreExitValue = true
+                standardOutput = os
+            }
+            commitid = os.toString()
+        }
+
+        expand(version: version, ts: ts, commitid: commitid)
+        into ('./src/main/resources')
+        outputs.upToDateWhen { false } 
+    }
+}

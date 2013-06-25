@@ -1,0 +1,29 @@
+<plugin name='tomcat' version='2.2.0' grailsVersion='2.2 &gt; *'>
+  <author>Graeme Rocher</author>
+  <authorEmail>graeme.rocher@springsource.com</authorEmail>
+  <title>Apache Tomcat plugin for Grails</title>
+  <description>Makes Tomcat 7.0 the default servlet container for Grails at development time.</description>
+  <documentation>http://grails.org/plugin/tomcat</documentation>
+  <type>TomcatGrailsPlugin</type>
+  <resources />
+  <repositories>
+    <repository name='grailsCentral' url='http://grails.org/plugins' />
+    <repository name='mavenCentral' url='http://repo1.maven.org/maven2/' />
+  </repositories>
+  <dependencies>
+    <compile>
+      <dependency group='org.apache.tomcat.embed' name='tomcat-embed-core' version='7.0.30' />
+      <dependency group='org.grails' name='grails-plugin-tomcat' version='2.2.0' />
+    </compile>
+    <runtime>
+      <dependency group='org.apache.tomcat' name='tomcat-catalina-ant' version='7.0.30' />
+      <dependency group='org.apache.tomcat.embed' name='tomcat-embed-jasper' version='7.0.30' />
+      <dependency group='org.eclipse.jdt.core.compiler' name='ecj' version='3.7.2' />
+      <dependency group='org.apache.tomcat.embed' name='tomcat-embed-logging-juli' version='7.0.30' />
+      <dependency group='org.apache.tomcat.embed' name='tomcat-embed-logging-log4j' version='7.0.30' />
+    </runtime>
+  </dependencies>
+  <plugins />
+  <runtimePluginRequirements />
+  <behavior />
+</plugin>

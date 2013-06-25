@@ -1,0 +1,149 @@
+/**
+ * Copyright 2013 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/* Override some defaults */
+.container > footer p {
+    text-align: center; /* center align it with the container */
+}
+
+
+.brand a {
+  color: #B9090B;
+}
+
+/* The white background content wrapper */
+.content {
+    background-color: #fff;
+    padding: 20px;
+    margin: 0 -20px; /* negative indent the amount of the padding to maintain the grid system */
+    -webkit-border-radius: 0 0 6px 6px;
+    -moz-border-radius: 0 0 6px 6px;
+    border-radius: 0 0 6px 6px;
+    -webkit-box-shadow: 0 1px 2px rgba(0,0,0,.15);
+    -moz-box-shadow: 0 1px 2px rgba(0,0,0,.15);
+    box-shadow: 0 1px 2px rgba(0,0,0,.15);
+    overflow: hidden;
+}
+
+/* Page header tweaks */
+.page-header {
+    background-color: #f5f5f5;
+    padding: 10px 10px 10px;
+    margin: -20px -20px 10px;
+    text-transform: capitalize !important;
+    border-top: 1px solid #DDD;
+}
+
+.page,
+.zoom-menu,
+.graph-type-menu {
+    display: none;
+}
+
+#logo {
+    background-image: url("../img/lipstick_140.png");
+    background-repeat: no-repeat;
+    background-size: 140px 40px;
+    height: 40px;
+    width: 160px;
+    padding: 0px;
+    margin: 0px;
+}
+
+#logo_gif {
+    height: 40px;
+    width: 180px;
+}
+
+.internal {
+    color: #A8A8A8;
+}
+
+.tablerow {
+    margin: auto;
+    padding-bottom: 20px;
+}
+
+table th, table td {
+    padding: 5px 5px 3px;
+}
+
+#logo2 {
+    position: absolute;
+    top: 100px;
+    left: 30px;
+    opacity:0.1; 
+}
+
+.terminal {
+    background-color: whitesmoke;
+}
+
+.snap-update {
+    padding-left: 10px;
+    color: #00CD64;
+}
+.progress {
+    overflow: hidden;
+    height: 18px;
+    margin-bottom: 0px;
+    background-color: #f7f7f7;
+    background-image: -moz-linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-image: -ms-linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f5f5f5), to(#f9f9f9));
+    background-image: -webkit-linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-image: -o-linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-image: linear-gradient(top, #f5f5f5, #f9f9f9);
+    background-repeat: repeat-x;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#f5f5f5', endColorstr='#f9f9f9', GradientType=0);
+    -webkit-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    -moz-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    -webkit-border-radius: 4px; 
+    -moz-border-radius: 4px; 
+    border-radius: 4px; 
+}
+
+div.navbar .progress {
+    width: 200px;
+    margin-top: 11px;
+}
+
+div .progress {
+    width: 100px;
+}
+
+div.progress > div.bar {
+    width: 0%;
+    color: black;
+}
+
+.navbar .job-info {
+    padding-top: 10px;
+    font-size: 15px;
+    color: #FFFFFF;
+}
+
+.navbar .zoom-menu {
+    width: 120px;
+}
+
+.navbar .graph-type-menu {
+    width: 165px;
+}
+
+#myModal {
+    font-size: 0.75em;
+}
