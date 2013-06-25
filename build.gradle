@@ -90,8 +90,8 @@ project(':lipstick-server') {
     }
     task('debug', type:Exec, dependsOn: 'import-jar') {
         group = "Lipstick"
-        description = 'Run lipstick-server in debug mode.'
-        commandLine './grailsw', 'run-app'
+        description = 'Run lipstick-server in debug mode. Runs on port 8080. Set -Pport=[port] to change.'
+        commandLine './grailsw', '-Dserver.port=' + (project.hasProperty('port') ? port : 8080), 'run-app'
     }
     task('debug-war', type:Exec, dependsOn: ':lipstick-server:import-jar') {
         commandLine './grailsw', 'debug', 'war'
