@@ -109,6 +109,12 @@
         $(document).on('mouseleave click', 'text', function(event) {
             d3.select(this).classed('mouseover',false);
         });
+        $(document).on('mouseenter', '.sample-output-icon', function(event) {
+            $(this).addClass('mouseover');
+        });
+        $(document).on('mouseleave click', '.sample-output-icon', function(event) {
+            $(this).removeClass('mouseover');
+        });
     },
     /**
      * Draws the graph.
@@ -436,6 +442,11 @@
         $('g.edge').on('click', function(event) {
             $(this).trigger('clickEdge.tossboss-graph-view', [$(this).attr('data-start'), $(this).attr('data-end'), $(this).attr('data-start-scopeId'), $(this).attr('data-end-scopeId')]);
         });
+        $(document).on('click', '.sample-output-icon', function(event) {
+            var startScopeId = $(this).attr('data-start-scopeId');
+            var startNodeId  = $('g.'+startScopeId+'-out').attr('data-start');
+            $(this).trigger('clickEdge.tossboss-graph-view', [startNodeId, '', startScopeId, '']);
+        });
     },
     /**
      * Display a record count on edges.
@@ -465,7 +476,10 @@
         }
         // If "-out" edge and has record count, display sample-output-icon.
         if (cls.match(/-out/g) && typeof(recordCount) === "number") {
-            GraphView.displayObject('<i class="icon-info-sign sample-output-icon '+cls+'"></i>', 'g.edge.'+cls+'.intermediate text[data-record-count]', 'right');
+            var startScopeId = cls.replace('-out','');
+            GraphView.displayObject('<i class="icon-info-sign sample-output-icon intermediate '+cls+'" data-start-scopeId="'+startScopeId+'"></i>',
+                                    'g.edge.'+cls+'.intermediate text[data-record-count]',
+                                    'right');
         }
     },
     /**
