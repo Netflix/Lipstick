@@ -68,3 +68,4 @@ lipstick-console/bin
 lipstick-console/test-output
 lipstick-console/src/main/resources/lipstick_build.txt
 
+/bin

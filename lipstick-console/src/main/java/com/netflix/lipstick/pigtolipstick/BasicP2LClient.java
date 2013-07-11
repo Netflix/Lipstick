@@ -33,6 +33,7 @@ import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.pig.LipstickPigServer;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
@@ -67,7 +68,6 @@ import com.netflix.lipstick.util.OutputSampler.SampleOutput;
 public class BasicP2LClient implements P2LClient {
     private static final Log LOG = LogFactory.getLog(BasicP2LClient.class);
 
-    protected static final String USER_NAME_PROP = "user.name";
     protected static final String JOB_NAME_PROP = "jobName";
 
     protected boolean planFailed = false;
@@ -145,11 +145,7 @@ public class BasicP2LClient implements P2LClient {
                 P2jPlanPackage plans = new P2jPlanPackage(opPlan.getP2jPlan(), unopPlan.getP2jPlan(), script, planId);
 
                 Properties props = ps.getPigContext().getProperties();
-                if (props.containsKey(USER_NAME_PROP)) {
-                    plans.setUserName(props.getProperty(USER_NAME_PROP));
-                } else {
-                    plans.setUserName(System.getProperty(USER_NAME_PROP));
-                }
+                plans.setUserName(UserGroupInformation.getCurrentUser().getUserName());
                 if (props.containsKey(JOB_NAME_PROP)) {
                     plans.setJobName(props.getProperty(JOB_NAME_PROP));
                 } else {
