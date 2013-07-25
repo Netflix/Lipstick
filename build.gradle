@@ -132,10 +132,16 @@ project(':lipstick-console') {
             println "building jar without Pig"
             compile('org.apache.pig:pig:0.11.1') {
                 exclude module: 'hsqld'
+                exclude module: 'jetty'
+                exclude module: 'jsp-api-2.1'
+                exclude module: 'servlet-api-2.5'
             }
         } else {
             includeInJar('org.apache.pig:pig:0.11.1') {
                 exclude module: 'hsqld'
+                exclude module: 'jetty'
+                exclude module: 'jsp-api-2.1'
+                exclude module: 'servlet-api-2.5'
             }
         }
 
