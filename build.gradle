@@ -23,6 +23,12 @@ allprojects {
     version = '0.3'
 }
 
+task('show-version') {
+    doLast {
+        println version
+    }
+}
+
 apply plugin: 'license'
 
 task(licensesAll, type: License) {
