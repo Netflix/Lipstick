@@ -158,9 +158,13 @@ public class BasicP2LClient implements P2LClient {
                 plans.getStatus().setStartTime();
                 plans.getStatus().setStatusText(StatusText.running);
                 psClient.savePlan(plans);
+                
+
             } catch (Exception e) {
-                LOG.warn("Caught unexpected exception generating json plan.", e);
+                LOG.error("Caught unexpected exception generating json plan.", e);
             }
+        } else {
+            LOG.warn("Not saving plan, missing necessary objects to do so");
         }
     }
 
