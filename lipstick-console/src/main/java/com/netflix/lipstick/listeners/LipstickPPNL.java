@@ -263,7 +263,7 @@ public class LipstickPPNL implements PigProgressNotificationListener {
     /**
      * Initialize the clients from properties in the pig context.
      */
-    private void initClients() {
+    protected void initClients() {
         // Make sure client list is empty before initializing.
         // For example, this prevents initailizing multiple times when
         // executing multiple runs in a grunt shell session.

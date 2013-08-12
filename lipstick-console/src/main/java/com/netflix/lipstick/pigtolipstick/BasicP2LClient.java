@@ -86,7 +86,11 @@ public class BasicP2LClient implements P2LClient {
      * @param serviceUrl the url to connect to the Lipstick Server
      */
     public BasicP2LClient(String serviceUrl) {
-        psClient = new RestfulPigStatusClient(serviceUrl);
+        this(new RestfulPigStatusClient(serviceUrl));
+    }
+
+    public BasicP2LClient(PigStatusClient client) {
+        this.psClient = client;
     }
 
     @Override
