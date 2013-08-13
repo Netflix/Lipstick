@@ -104,7 +104,6 @@ public class BasicP2LClient implements P2LClient {
     @Override
     public void setPigServer(LipstickPigServer ps) {
         this.ps = ps;
-        setPigContext(ps.getPigContext());
     }
 
     public void setPigContext(PigContext context) {
