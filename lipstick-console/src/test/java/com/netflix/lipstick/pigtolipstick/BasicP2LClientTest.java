@@ -25,18 +25,6 @@ import org.apache.pig.newplan.Operator;
 
 public class BasicP2LClientTest {
 
-    /* Create a Mock PigContext object with methods stubbed out to
-       let the BasicP2LClient.createPlan() method complete */
-    public PigContext makeMockContext() {
-        HExecutionEngine exec_engine = mock(HExecutionEngine.class);
-        when(exec_engine.getLogToPhyMap()).thenReturn(new HashMap<Operator, PhysicalOperator>());
-
-        PigContext ctx = mock(PigContext.class);
-        when(ctx.getExecutionEngine()).thenReturn(exec_engine);
-        when(ctx.getProperties()).thenReturn(new Properties());
-        return ctx;
-    }
-
     /* Create Mock P2jPlanGenerator objects with methods stubbed out to
        let the BasicP2LClient.createPlan() method complete, and
        pass them to the client via the setter method. */
@@ -55,16 +43,31 @@ public class BasicP2LClientTest {
         return plan;
     }
 
+    /* Create a Mock PigContext object with methods stubbed out to
+        let the BasicP2LClient.createPlan() method complete */
+    public void addMockPigContext(BasicP2LClient client) {
+        HExecutionEngine exec_engine = mock(HExecutionEngine.class);
+        when(exec_engine.getLogToPhyMap()).thenReturn(new HashMap<Operator, PhysicalOperator>());
+
+        PigContext ctx = mock(PigContext.class);
+        when(ctx.getExecutionEngine()).thenReturn(exec_engine);
+        when(ctx.getProperties()).thenReturn(new Properties());
+        client.setPigContext(ctx);
+    }
+
+    public void addMockPigServer(BasicP2LClient client) {
+        LipstickPigServer server = mock(LipstickPigServer.class);
+        client.setPigServer(server);
+    }
+
+
     @Test
     public void testCreatePlanClientSaved() throws Exception {
         PigStatusClient status_client = mock(PigStatusClient.class);        
         BasicP2LClient client = new BasicP2LClient(status_client);
-        
-        LipstickPigServer server = mock(LipstickPigServer.class);
-        PigContext ctx = makeMockContext();
-        when(server.getPigContext()).thenReturn(ctx);
-        client.setPigServer(server);
 
+        addMockPigContext(client);
+        addMockPigServer(client);
         setMockPlanGenerators(client);
 
         client.createPlan(makeMockMROperPlan());
@@ -77,10 +80,7 @@ public class BasicP2LClientTest {
     public void testCreatePlanNoPigServerJustContext() throws Exception {
         PigStatusClient status_client = mock(PigStatusClient.class);        
         BasicP2LClient client = new BasicP2LClient(status_client);
-        
-        PigContext ctx = makeMockContext();
-        client.setPigContext(ctx);
-
+        addMockPigContext(client);
         setMockPlanGenerators(client);
 
         client.createPlan(makeMockMROperPlan());
