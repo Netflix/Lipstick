@@ -104,10 +104,10 @@ schemaTmpl: ' \
 <% } %></table> \
 ',
 
-drawerObjTmpl: ' \
-<div class="drawer-object-container <%= data.groupName %> <%= data.objectName %>"> \
-    <h3 class="drawer-object-title"><%= data.title %></h3> \
-    <div class="drawer-object-body"> \
+detailViewObjTmpl: ' \
+<div class="detail-view-object-container <%= data.groupName %> <%= data.objectName %>"> \
+    <h3 class="detail-view-object-title"><%= data.title %></h3> \
+    <div class="detail-view-object-body"> \
         <%= data.html %> \
     </div> \
 </div> \

@@ -82,6 +82,7 @@ function getJobInfo(uuid) {
     Script.initialize();
     GraphView.initialize();
     GraphModel.initialize(uuid);
+    DetailView.initialize();
 }
 
 $(function () {

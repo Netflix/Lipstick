@@ -157,5 +157,64 @@
         $('#myModal .modal-body').html(html);
         $('#myModal .modal-body').scrollTop(0).scrollLeft(0);
         $(document).trigger('loadSampleOutputData.tossboss-graph-model');
+    },
+
+    /**
+     * Return the MR info for a given scopeId.
+     *
+     * @param {String} scopeId the map-reduce job's scopeId
+     */
+    getMRInfo: function(scopeId) {
+        var mrInfo = {};
+        // Get all Pig data for the map-reduce job.
+        var aliasObjs = _.filter(GraphModel.options.allData.optimized.plan, function(obj) {
+            return obj.alias && obj.mapReduce && obj.mapReduce.jobId == scopeId;
+        });
+        
+        // Get aliases used in map-reduce job.
+        mrInfo.aliases  = _.map(aliasObjs, function(obj) { return obj.alias }).sort();
+
+        // Get run stats data for map-reduce job.
+        var mrJobInfo = _.where(GraphModel.options.runStatsData.jobStatusMap, {'scope': scopeId})[0];
+
+        // If map-reduce job has run stats data, display.
+        if (mrJobInfo) {
+            mrJobInfo.progressInfo = [
+                { 'type': 'Map',
+                  'number_tasks': GraphView.addCommas(mrJobInfo.totalMappers),
+                  'progress': Math.floor(mrJobInfo.mapProgress * 100) },
+                { 'type': 'Reduce',
+                  'number_tasks': GraphView.addCommas(mrJobInfo.totalReducers),
+                  'progress': Math.floor(mrJobInfo.reduceProgress * 100) }
+            ];
+            mrInfo.mrJobInfo = mrJobInfo;
+        }
+
+        return mrInfo;
+    },
+
+    /**
+     * Return an array of MR Job Data for the entire script
+     */
+    getScriptInfo: function() {
+        if(GraphModel.options.runStatsData) {
+            var data = [];
+            var scopeIds = _.map(GraphModel.options.runStatsData.jobStatusMap, function(obj) {
+                return obj.scope;
+            });
+
+            _.each(scopeIds, function(scopeId, index) {
+                var mrJobData = {};
+                mrJobData.runData = {};
+                mrJobData.scopeId = scopeId;
+                var mrRunStatsData = _.where(GraphModel.options.runStatsData.jobStatusMap, { 'scope': scopeId });
+                if (mrRunStatsData.length) {
+                    mrJobData.runData = mrRunStatsData[0];
+                }
+                data.push(mrJobData);
+            });
+            return data;
+        }
+        return [];
     }
 };
