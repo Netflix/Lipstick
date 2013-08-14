@@ -91,6 +91,7 @@
         // Add Script section to bottom drawer.
         $('#bottom-drawer .container').append($('div#script'));
         $('div#script').removeClass();
+        $('div#script').removeAttr('style');
         $('div#script').show();
         // Remove Script link from navbar.
         $('#nav-links li#script').remove();
