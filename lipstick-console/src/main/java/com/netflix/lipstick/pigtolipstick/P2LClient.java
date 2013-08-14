@@ -15,6 +15,7 @@
  */
 package com.netflix.lipstick.pigtolipstick;
 
+import org.apache.pig.impl.PigContext;
 import org.apache.pig.LipstickPigServer;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.tools.pigstats.JobStats;
@@ -51,6 +52,13 @@ public interface P2LClient {
      * @param ps
      */
     void setPigServer(LipstickPigServer ps);
+
+    /**
+     * Sets the PigContext which is used to provide context information.
+     *
+     * @param ps
+     */    
+    public void setPigContext(PigContext context);
 
     /**
      * Sets the id of the plan which should be globally unique.

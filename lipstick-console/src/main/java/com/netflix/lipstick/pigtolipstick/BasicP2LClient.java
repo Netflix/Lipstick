@@ -34,6 +34,7 @@ import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.pig.impl.PigContext;
 import org.apache.pig.LipstickPigServer;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
@@ -75,6 +76,7 @@ public class BasicP2LClient implements P2LClient {
     protected P2jPlanGenerator unopPlanGenerator;
     protected P2jPlanGenerator opPlanGenerator;
     protected LipstickPigServer ps;
+    protected PigContext context;
     protected final Set<String> runningJobIds = Sets.newHashSet();
     protected final Map<String, String> jobIdToScopeNameMap = Maps.newHashMap();
 
@@ -104,6 +106,10 @@ public class BasicP2LClient implements P2LClient {
         this.ps = ps;
     }
 
+    public void setPigContext(PigContext context) {
+        this.context = context;
+    }
+
     @Override
     public void setPlanId(String planId) {
         this.planId = planId;
@@ -117,7 +123,7 @@ public class BasicP2LClient implements P2LClient {
     @Override
     @SuppressWarnings("unused")
     public void createPlan(MROperPlan plan) {
-        if (plan != null && unopPlanGenerator != null && opPlanGenerator != null && ps != null) {
+        if (plan != null && unopPlanGenerator != null && opPlanGenerator != null && context != null) {
             Configuration conf = null;
             for (MapReduceOper job : plan) {
                 if (conf == null) {
@@ -128,7 +134,7 @@ public class BasicP2LClient implements P2LClient {
             }
             try {
                 Map<PhysicalOperator, Operator> p2lMap = Maps.newHashMap();
-                Map<Operator, PhysicalOperator> l2pMap = ps.getPigContext().getExecutionEngine().getLogToPhyMap();
+                Map<Operator, PhysicalOperator> l2pMap = context.getExecutionEngine().getLogToPhyMap();
                 for (Entry<Operator, PhysicalOperator> i : l2pMap.entrySet()) {
                     p2lMap.put(i.getValue(), i.getKey());
                 }
@@ -139,7 +145,7 @@ public class BasicP2LClient implements P2LClient {
                 if (conf != null && false) {
                     script = new String(Base64.decodeBase64(conf.get("pig.script")));
                 }
-                if (script == null || script.length() == 0) {
+                if ((script == null || script.length() == 0) && (ps != null)) {
                     script = StringUtils.join(ps.getScriptCache(), '\n');
                 }
 
@@ -148,7 +154,7 @@ public class BasicP2LClient implements P2LClient {
 
                 P2jPlanPackage plans = new P2jPlanPackage(opPlan.getP2jPlan(), unopPlan.getP2jPlan(), script, planId);
 
-                Properties props = ps.getPigContext().getProperties();
+                Properties props = context.getProperties();
                 plans.setUserName(UserGroupInformation.getCurrentUser().getUserName());
                 if (props.containsKey(JOB_NAME_PROP)) {
                     plans.setJobName(props.getProperty(JOB_NAME_PROP));
@@ -158,9 +164,13 @@ public class BasicP2LClient implements P2LClient {
                 plans.getStatus().setStartTime();
                 plans.getStatus().setStatusText(StatusText.running);
                 psClient.savePlan(plans);
+                
+
             } catch (Exception e) {
-                LOG.warn("Caught unexpected exception generating json plan.", e);
+                LOG.error("Caught unexpected exception generating json plan.", e);
             }
+        } else {
+            LOG.warn("Not saving plan, missing necessary objects to do so");
         }
     }
 

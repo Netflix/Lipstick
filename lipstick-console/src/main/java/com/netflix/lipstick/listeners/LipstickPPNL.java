@@ -22,6 +22,7 @@ import java.util.UUID;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.pig.LipstickPigServer;
+import org.apache.pig.impl.PigContext;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.tools.pigstats.JobStats;
 import org.apache.pig.tools.pigstats.OutputStats;
@@ -49,6 +50,7 @@ public class LipstickPPNL implements PigProgressNotificationListener {
     protected static final String LIPSTICK_URL_PROP = "lipstick.server.url";
 
     protected LipstickPigServer ps;
+    protected PigContext context;
     protected List<P2LClient> clients = Lists.newLinkedList();
 
     /**
@@ -78,6 +80,18 @@ public class LipstickPPNL implements PigProgressNotificationListener {
      */
     public void setPigServer(LipstickPigServer ps) {
         this.ps = ps;
+        setPigContext(ps.getPigContext());
+    }
+
+    /**
+     * Sets a reference to the pig context. Used if running
+     * without a LipstickPigServer.
+     *
+     * @param ps
+     *            the pig server
+     */
+    public void setPigContext(PigContext context) {
+        this.context = context;
     }
 
     /**
@@ -101,9 +115,10 @@ public class LipstickPPNL implements PigProgressNotificationListener {
                 for (P2LClient client : clients) {
                     client.setPlanGenerators(unoptimizedPlanGenerator, optimizedPlanGenerator);
                     client.setPigServer(ps);
+                    client.setPigContext(context);
                     client.setPlanId(uuid);
                 }
-                Properties props = ps.getPigContext().getProperties();
+                Properties props = context.getProperties();
                 props.put(LIPSTICK_UUID_PROP, uuid);
             }
         } catch (Exception e) {
