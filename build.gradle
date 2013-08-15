@@ -21,6 +21,7 @@ allprojects {
         mavenCentral()
     }
     version = '0.3'
+    group = 'com.netflix.lipstick'
 }
 
 task('show-version') {
@@ -114,9 +115,18 @@ project(':lipstick-server') {
 project(':lipstick-console') {
     apply plugin: 'java'
     apply plugin: 'eclipse'
+    apply plugin: 'maven-publish'
 
     configurations {
         includeInJar
+    }
+
+    publishing {    
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+            }
+        }
     }
 
     dependencies {
@@ -201,4 +211,6 @@ project(':lipstick-console') {
         into ('./src/main/resources')
         outputs.upToDateWhen { false } 
     }
-}
+
+    task('install', dependsOn: 'publishToMavenLocal')
+}     
