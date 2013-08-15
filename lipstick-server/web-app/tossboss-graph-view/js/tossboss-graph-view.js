@@ -315,46 +315,49 @@
      * @param {String} position The position at target to display ('top', 'bottom', 'left', or 'right')
      */
     displayObject: function(displayObj, targetSel, position) {
-        var topOffset  = parseFloat($('.navbar').get(0).getBoundingClientRect().height)
-                       + parseFloat($(GraphView.options.pageSel).css('padding-top'))
-                       + parseFloat($(GraphView.options.pageSel).css('margin-top'));
-        var leftOffset = parseFloat($('#left-drawer .handle').get(0).getBoundingClientRect().width)
-                       + parseFloat($(GraphView.options.pageSel).css('padding-left'))
-                       + parseFloat($(GraphView.options.pageSel).css('margin-left'));
         var displayObj = $(displayObj);
         _.each($(targetSel), function(targetObj, index) {
-            // Calculate target object's top and left values at zoom 100% relative to top of page.
-            var targetObjRect = targetObj.getBoundingClientRect();
-            var targetObjRectTop  = targetObjRect.top  + parseFloat($(GraphView.options.pageSel).get(0).scrollTop);
-            var targetObjRectLeft = targetObjRect.left + parseFloat($(GraphView.options.pageSel).get(0).scrollLeft);
-            var targetTop  = ((targetObjRectTop - 100 + (100 * GraphView.options.zoomLevel)) / GraphView.options.zoomLevel) - topOffset;
-            var targetLeft = ((targetObjRectLeft - 20 + (20  * GraphView.options.zoomLevel)) / GraphView.options.zoomLevel) - leftOffset;
-            // Default display object's top and left values to target's top and left values.
-            var displayObjTop  = targetTop;
-            var displayObjLeft = targetLeft;
+            // Get the top, left, height, and width of the TargetObj relative 
+            // to the SVG container
+            var boundingBox = targetObj.getBBox();
+            var matrix  = targetObj.getCTM();
+            var svg = $(targetObj).closest('svg').get(0);
+            var pt_tl  = svg.createSVGPoint();
+            var pt_br  = svg.createSVGPoint();
+
+            pt_tl.x = boundingBox.x; 
+            pt_tl.y = boundingBox.y; 
+            pt_br.x = boundingBox.x + boundingBox.width; 
+            pt_br.y = boundingBox.y + boundingBox.height; 
+            pt_tl = pt_tl.matrixTransform(matrix);
+            pt_br = pt_br.matrixTransform(matrix);
+
+            var targetObjHeight = pt_br.y - pt_tl.y;
+            var targetObjWidth  = pt_br.x - pt_tl.x;
+            var displayObjTop  = pt_tl.y;
+            var displayObjLeft = pt_tl.x;
+
             // Clone and add display object to page.
             var displayObjCopy = $(displayObj).clone();
             $(GraphView.options.graphSel).append(displayObjCopy);
             displayObjCopy.css('position', 'absolute');
-            // Get target object's height and width at zoom 100%.
-            targetObjHeight = targetObj.getBoundingClientRect().height / GraphView.options.zoomLevel;
-            targetObjWidth  = targetObj.getBoundingClientRect().width / GraphView.options.zoomLevel;
+
             // Calculate display object's new top and left values according to position setting.
             if (position.toLowerCase() === 'top') {
-                displayObjTop  = targetTop - displayObjCopy.outerHeight();
-                displayObjLeft = targetLeft + (targetObjWidth / 2) - (displayObjCopy.outerWidth() / 2);
+                displayObjTop -= displayObjCopy.outerHeight();
+                displayObjLeft += (targetObjWidth / 2) - (displayObjCopy.outerWidth() / 2);
             }
             else if (position.toLowerCase() === 'bottom') {
-                displayObjTop  = targetTop + targetObjHeight;
-                displayObjLeft = targetLeft + (targetObjWidth / 2) - (displayObjCopy.outerWidth() / 2);
+                displayObjTop += targetObjHeight;
+                displayObjLeft += (targetObjWidth / 2) - (displayObjCopy.outerWidth() / 2);
             }
             else if (position.toLowerCase() === 'left') {
-                displayObjTop  = targetTop + (targetObjHeight / 2) - (displayObjCopy.outerHeight() / 2);
-                displayObjLeft = targetLeft - displayObjCopy.outerWidth();
+                displayObjTop += (targetObjHeight / 2) - (displayObjCopy.outerHeight() / 2);
+                displayObjLeft -= displayObjCopy.outerWidth();
             }
             else if (position.toLowerCase() === 'right') {
-                displayObjTop  = targetTop + (targetObjHeight / 2) - (displayObjCopy.outerHeight() / 2);
-                displayObjLeft = targetLeft + targetObjWidth;
+                displayObjTop += (targetObjHeight / 2) - (displayObjCopy.outerHeight() / 2);
+                displayObjLeft += targetObjWidth;
             }
             displayObjCopy.css({top:  displayObjTop  + 'px',
                                 left: displayObjLeft + 'px'}).show();
