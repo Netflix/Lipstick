@@ -361,6 +361,12 @@
             }
             displayObjCopy.css({top:  displayObjTop  + 'px',
                                 left: displayObjLeft + 'px'}).show();
+
+            displayObjCopy.on('click', function(event) {
+                var startScopeId = $(this).attr('data-start-scopeId');
+                var startNodeId  = $('g.'+startScopeId+'-out').attr('data-start');
+                $(this).trigger('clickEdge.tossboss-graph-view', [startNodeId, '', startScopeId, '']);
+            });
         });
     },
     /**
@@ -444,11 +450,6 @@
         // Bind events.
         $('g.edge').on('click', function(event) {
             $(this).trigger('clickEdge.tossboss-graph-view', [$(this).attr('data-start'), $(this).attr('data-end'), $(this).attr('data-start-scopeId'), $(this).attr('data-end-scopeId')]);
-        });
-        $(document).on('click', '.sample-output-icon', function(event) {
-            var startScopeId = $(this).attr('data-start-scopeId');
-            var startNodeId  = $('g.'+startScopeId+'-out').attr('data-start');
-            $(this).trigger('clickEdge.tossboss-graph-view', [startNodeId, '', startScopeId, '']);
         });
     },
     /**

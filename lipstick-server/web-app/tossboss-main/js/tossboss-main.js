@@ -17,64 +17,9 @@
  * Responsible for the initialization of objects and the page.
  * 
  * LISTENS FOR EVENTS:
- * - loadGraphModel.tossboss-graph-model
  * 
  * TIGGERS EVENTS:
  */
-
-;Main = {
-    options: {
-        modalDefaults: {
-            title: '',
-            html: '<img class="center" src="./images/loading.gif"/>'
-        }
-    },
-    /**
-     * Start all custom event listeners.
-     */
-    startListeners: function() {
-        // On getting graph data from GraphModel, show menus.
-        $(document).on('loadGraphModel.tossboss-graph-model', function(event) {
-            $('.zoom-menu').show();
-            $('.graph-type-menu').show();
-        });
-    },
-    /**
-     * Initialize the Main object.
-     */
-    initialize: function() {
-        Main.startListeners();
-    },
-    /**
-     * Add and display a modal.
-     * Example: displayModal(options)
-     * options: {
-     *     title: '',
-     *     html: ''
-     * }
-     *
-     * options.title = modal title
-     * options.html = html markup for modal body
-     *
-     * @param {Object} options The options for the modal
-     */
-    displayModal: function(options) {
-        var opts = $.extend({}, Main.options.modalDefaults, options);
-        $('body').prepend(_.template(Templates.modalTmpl, opts, {variable:'data'}));
-        $('#myModal').css({
-            'width': function () {
-                return ($(document).width() * .9) + 'px';
-            },
-            'margin-left': function () {
-                return -($(this).width() / 2);
-            }
-        });
-        $('#myModal').modal('toggle');
-        $('#myModal').on('hidden', function(event) {
-            $('#myModal').remove();
-        });
-    }
-};
 
 var uuid;
 function getJobInfo(uuid) {
@@ -86,7 +31,7 @@ function getJobInfo(uuid) {
 }
 
 $(function () {
-    Main.initialize();
+    Modal.initialize();
     Drawer.initialize(0,1,1,0);
     Drawer.initDisplay(0,1,0,0);
     var TestRouter = Backbone.Router.extend({

@@ -136,7 +136,7 @@
         });
         newScript += '\n'+limitCmd+'\n'+dumpCmd+'\n';
         // Populate modal and show.
-        Main.displayModal({title:"Breakpoint Code", html:_.template(Templates.breakpointCodeTmpl, newScript, {variable:'data'})});
+        Modal.displayModal({title:"Breakpoint Code", html:_.template(Templates.breakpointCodeTmpl, newScript, {variable:'data'})});
         $(document).trigger('loadBreakpointCode.tossboss-graph-script', [id]);
     },
     /**

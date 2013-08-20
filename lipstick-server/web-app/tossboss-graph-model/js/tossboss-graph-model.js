@@ -45,7 +45,7 @@
         // On edge click, get sample data and toggle modal.
         $(document).on('clickEdge.tossboss-graph-view', function(event, startNodeId, endNodeId, startScopeId, endScopeId) {
             if (_.contains(event.target.classList, startScopeId+'-out') && _.contains(event.target.classList, 'intermediate')) {
-                Main.displayModal({title:'Sample Data'});
+                Modal.displayModal({title:'Sample Data'});
                 // Check to see if sample data is cached.
                 if (! GraphModel.options.sampleOutputsData[startScopeId]) {
                     // Get sample data.
