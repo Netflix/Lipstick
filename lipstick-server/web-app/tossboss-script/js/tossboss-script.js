@@ -68,6 +68,7 @@
      * @param {String} script The Pig script being run
      */
     initialize: function(script) {
+        Script.initPage();
         Script.startListeners();
         Script.options.script = script;
         // Populate Code Mirror with script and get script line numbers from Pig data.
@@ -82,6 +83,18 @@
             Script.options.lineNumbers.sort(function(a,b){return a-b})
             Script.options.lineNumbers = _.unique(Script.options.lineNumbers, true);
         }
+    },
+    /**
+     * Setup elements on the page
+     */
+    initPage: function() {
+        // Add Script section to bottom drawer.
+        $('#bottom-drawer .container').append($('div#script'));
+        $('div#script').removeClass();
+        $('div#script').removeAttr('style');
+        $('div#script').show();
+        // Remove Script link from navbar.
+        $('#nav-links li#script').remove();
     },
     /**
      * Get relevant Pig code to the specified node's id.
@@ -123,7 +136,7 @@
         });
         newScript += '\n'+limitCmd+'\n'+dumpCmd+'\n';
         // Populate modal and show.
-        Main.displayModal({title:"Breakpoint Code", html:_.template(Templates.breakpointCodeTmpl, newScript, {variable:'data'})});
+        Modal.displayModal({title:"Breakpoint Code", html:_.template(Templates.breakpointCodeTmpl, newScript, {variable:'data'})});
         $(document).trigger('loadBreakpointCode.tossboss-graph-script', [id]);
     },
     /**

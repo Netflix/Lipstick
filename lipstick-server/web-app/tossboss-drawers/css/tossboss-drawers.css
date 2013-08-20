@@ -155,8 +155,8 @@
     bottom: 0px;
 }
 
-#right-drawer .drawer-object-container,
-#left-drawer .drawer-object-container {
+#right-drawer .detail-view-object-container,
+#left-drawer .detail-view-object-container {
     padding-top: 40px;
 }
 
@@ -187,22 +187,4 @@
 
 #graph-menu {
     position: relative;
-}
-
-/* OVERWRITE codemirror DEFAULTS */
-.CodeMirror-scroll {
-  height: 240px;
-}
-
-/* DRAWER SPECIFIC  */
-.drawer-object-body {
-    font-size: 0.75em;
-}
-
-.LO-schema {
-    overflow: auto;
-}
-
-.graph-view-options {
-    padding-top: 0px;
 }
