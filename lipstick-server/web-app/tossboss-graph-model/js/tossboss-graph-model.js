@@ -27,6 +27,7 @@
 
 ;GraphModel = {
     options: {
+        baseUrl: './job/',
         jobInfoSel: '.navbar .job-info',
         graphType: 'optimized',
         uuid: undefined,
@@ -51,7 +52,7 @@
                     // Get sample data.
                     $.ajax({
                         type: 'GET',
-                        url:  './job/'+GraphModel.options.uuid+'?sampleOutput=1',
+                        url:  GraphModel.options.baseUrl + GraphModel.options.uuid +'?sampleOutput=1',
                     }).done(function(json) {
                         // If there is sample data, cache and populate.
                         if (! $.isEmptyObject(json.sampleOutputMap)) {
@@ -84,7 +85,7 @@
         // Get optimized Pig data and script.
         $.ajax({
             type: 'GET',
-            url:  './job/'+uuid+'?optimized=1&scripts=1'
+            url:  GraphModel.options.baseUrl + uuid + '?optimized=1&scripts=1'
         }).done(function(json) {
             GraphModel.options.allData = json;
             GraphModel.options.runStatsData = json.status;
@@ -98,7 +99,7 @@
         // Get unoptimized Pig data.
         $.ajax({
             type: 'GET',
-            url:  './job/'+uuid+'?unoptimized=1'
+            url:  GraphModel.options.baseUrl + uuid + '?unoptimized=1'
         }).done(function(json) {
             GraphModel.options.pigUnoptimizedData = json.unoptimized.plan;
             GraphModel.options.svgUnoptimized = json.unoptimized.svg;
@@ -110,7 +111,7 @@
     getRunStats: function() {
         $.ajax({
             type: 'GET',
-            url:  './job/'+GraphModel.options.uuid+'?status=1',
+            url:  GraphModel.options.baseUrl + GraphModel.options.uuid + '?status=1',
         }).done(function(json) {
             GraphModel.options.runStatsData = json.status;
             $(document).trigger('loadRunStatsData.tossboss-graph-model');
