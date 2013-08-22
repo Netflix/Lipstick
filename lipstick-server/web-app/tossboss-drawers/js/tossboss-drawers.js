@@ -16,12 +16,6 @@
 /** tossboss-drawers.js
  * Responsible for drawing and maintaining the drawers.
  *
- * LISTENS FOR EVENTS:
- * - clickLogicalOperator.tossboss-graph-view
- * - clickMRJob.tossboss-graph-view
- * - clickOutsideGraph.tossboss-graph-view
- * - loadRunStatsData.tossboss-graph-model
- *
  * TRIGGERS EVENTS:
  * - closeDrawer.tossboss-drawer
  * - openDrawer.tossboss-drawer
@@ -74,64 +68,6 @@
 '
     },
     /**
-     * Start all custom event listeners.
-     */
-    startListeners: function() {
-        // On logical operator click, populate right drawer.
-        $(document).on('clickLogicalOperator.tossboss-graph-view', function(event, uid) {
-            $(Drawer.options.rightContainerSel).scrollTop(0);
-            Drawer.populateLOInfo(uid);
-        });
-        // On map-reduce job click, populate right drawer.
-        $(document).on('clickMRJob.tossboss-graph-view', function(event, scopeId) {
-            $(Drawer.options.rightContainerSel).scrollTop(0);
-            Drawer.populateMRInfo(scopeId);
-        });
-        // On outside graph click, populate right drawer.
-        $(document).on('clickOutsideGraph.tossboss-graph-view', function(event) {
-            $(Drawer.options.rightContainerSel).scrollTop(0);
-            Drawer.populateScriptInfo();
-        });
-        // On getting run stats data from GraphModel, update right drawer information.
-        $(document).on('loadRunStatsData.tossboss-graph-model', function(event) {
-            var runStatsData = GraphModel.options.runStatsData;
-            // Display script status.
-            var startTime, endTime, heartbeatTime = undefined;
-            if (runStatsData.startTime) {
-                var myDate = new Date(runStatsData.startTime);
-                startTime = myDate.toLocaleString();
-            }
-            if (runStatsData.endTime) {
-                var myDate = new Date(runStatsData.endTime);
-                endTime = myDate.toLocaleString();
-            }
-            if (runStatsData.heartbeatTime) {
-                var myDate = new Date(runStatsData.heartbeatTime);
-                heartbeatTime = myDate.toLocaleString();
-            }
-            var data = {
-                'statusText': runStatsData.statusText,
-                'startTime': startTime,
-                'endTime': endTime,
-                'heartbeatTime': heartbeatTime
-            };
-            $('.script-status-info .drawer-object-body').empty();
-            $('.script-status-info .drawer-object-body').html(_.template(Templates.scriptStatusTmpl, data, {variable:'data'}));
-            // If script map-reduce jobs is displayed, update.
-            if ($('.script-mr-jobs').length > 0) {
-                Drawer.populateScriptInfo();
-            }
-            // Loop through map-reduce jobs
-            _.each(runStatsData.jobStatusMap, function(jobStats, jobTrackerId) {
-                var jobId = jobStats.jobId;
-                // If map-reduce job's counters are displayed, update.
-                if ($('.MRJob-counters.'+jobId).length > 0) {
-                    Drawer.populateMRInfo(jobStats.scope);
-                }
-            });
-        });
-    },
-    /**
      * Initialize the Drawer object.
      *
      * @param {Number} top If 1, activate top drawer
@@ -140,7 +76,6 @@
      * @param {Number} left If 1, activate left drawer
      */
     initialize: function(top, right, bottom, left) {
-        Drawer.startListeners();
         // Add drawers HTML to page and get drawer sizes.
         $('body').prepend(Drawer.options.drawersHtml);
         Drawer.options.handleSize    = $(Drawer.options.rightHandleSel).outerWidth();
@@ -197,22 +132,6 @@
         $(Drawer.options.allHandleSel+'.active').on('mouseleave click', function(event) {
             $(this).removeClass('mouseover');
         });
-        Drawer.initPage();
-    },
-    /**
-     * Set the start-up contents displayed in drawers.
-     */
-    initPage: function() {
-        // Add Script Start, Status, etc (Script Info) to right drawer.
-        Drawer.addObject({groupName: 'script-status freeze', objectName: 'script-status-info', title: 'Script Status:', html: ''});
-        Drawer.populateScriptInfo();
-        // Add Script section to bottom drawer.
-        Drawer.addObject({drawer: 'bottom-drawer', groupName: 'script-group', html: ''});
-        $('.script-group').append($('div#script'));
-        $('div#script').removeClass();
-        $('div#script').show();
-        // Remove Script link from navbar.
-        $('#nav-links li#script').remove();
     },
     /**
      * Set the intial display of drawers (opened or closed) at page load.
@@ -308,32 +227,6 @@
         }
     },
     /**
-     * Add an object to a drawer.
-     * Example: addObject(options)
-     * options: {
-     *     drawer: '',
-     *     groupName: '',
-     *     objectName: '',
-     *     title: '',
-     *     html: '',
-     * }
-     *
-     * options.drawer = drawer to add object to ('top-drawer', 'right-drawer', 'bottom-drawer', or 'left-drawer')
-     * options.groupName = name of group the object belongs to (adding 'freeze' will keep the contents in the drawer when clearing, example: 'myGroup freeze')
-     * options.objectName = unique name for object
-     * options.title = title for object (optional)
-     * options.html = html markup for object
-     *
-     * @param {Object} options The options for the object
-     */
-    addObject: function(options) {
-        var opts = $.extend({}, Drawer.options.objDefaults, options);
-        var divSels = Drawer.getInfo(opts.drawer.toLowerCase());
-        if (divSels) {
-            $(divSels.containerSel).append(_.template(Templates.drawerObjTmpl, opts, {variable:'data'}));
-        }
-    },
-    /**
      * Open drawer.
      *
      * @param {String} drawer The drawer to open ('top-drawer', 'right-drawer', 'bottom-drawer', or 'left-drawer')
@@ -370,104 +263,6 @@
      */
     clearDrawer: function(drawer) {
         var drawerSelects = Drawer.getInfo(drawer.toLowerCase());
-        $(drawerSelects.containerSel + ' .drawer-object-container:not(.freeze)').remove();
-    },
-    /**
-     * Populate map-reduce job's information in a drawer.
-     *
-     * @param {String} scopeId The map-reduce job's scopeId
-     */
-    populateMRInfo: function(scopeId) {
-        Drawer.clearDrawer('right-drawer');
-        // Get all Pig data for the map-reduce job.
-        var aliasObjs = _.filter(GraphModel.options.allData.optimized.plan, function(obj) {
-            return obj.alias && obj.mapReduce && obj.mapReduce.jobId == scopeId;
-        });
-        // Get aliases used in map-reduce job.
-        var aliases   = _.map(aliasObjs, function(obj) { return obj.alias }).sort();
-        // Get run stats data for map-reduce job.
-        var mrJobInfo = _.where(GraphModel.options.runStatsData.jobStatusMap, {'scope': scopeId})[0];
-        // Add MRJob-aliases object to MRJob-info group in drawer.
-        Drawer.addObject({groupName: 'MRJob-info', objectName: 'MRJob-aliases', title: 'Aliases:',
-            html: _.template(Templates.aliasesTmpl, _.unique(aliases), {variable: 'data'})});
-        // If map-reduce job has run stats data, display.
-        if (mrJobInfo) {
-            var jobId = mrJobInfo.jobId;
-            var trackingUrl = mrJobInfo.trackingUrl;
-            var progressData = {
-                'jobId' : jobId,
-                'progressInfo':
-                    [
-                        { 'type': 'Map',
-                          'number_tasks': GraphView.addCommas(mrJobInfo.totalMappers),
-                          'progress': Math.floor(mrJobInfo.mapProgress * 100) },
-                        { 'type': 'Reduce',
-                          'number_tasks': GraphView.addCommas(mrJobInfo.totalReducers),
-                          'progress': Math.floor(mrJobInfo.reduceProgress * 100) }
-                    ]
-            };
-            var counterHtml = _.template(Templates.counterTmpl, mrJobInfo.counters, {variable: 'data'});
-            // Add MRJob-jobId object to MRJob-info group in drawer.
-            Drawer.addObject({groupName: 'MRJob-info', objectName: 'MRJob-jobId', title: 'Job ID:',
-                html: '<a href="'+trackingUrl+'" target="_blank"><h3>'+jobId+'</h3></a>'});
-            // Add MRJob-progress object to MRJob-info group in drawer.
-            Drawer.addObject({groupName: 'MRJob-info', objectName: 'MRJob-progress', title: 'Progress:',
-                html: _.template(Templates.progressTmpl, progressData, {variable: 'data'})});
-            // Add MRJob-counters object to MRJob-info group in drawer.
-            Drawer.addObject({groupName: 'MRJob-info', objectName: 'MRJob-counters '+jobId, title: '',
-                html: counterHtml});
-        }
-    },
-    /**
-     * Populate node's information in a drawer.
-     *
-     * @param {String} id The node's id
-     */
-    populateLOInfo: function(id) {
-        Drawer.clearDrawer('right-drawer');
-        // Get data about node.
-        var pigData = GraphModel.getPigData();
-        var aliasInfo = pigData[id];
-        var alias = aliasInfo['alias'];
-        var operator = aliasInfo['operator'].replace("LO","");
-        if (aliasInfo.hasOwnProperty('join')) {
-            var joinType = aliasInfo['join']['type'];
-            var joinStrategy = aliasInfo['join']['strategy'];
-            operator += ' ('+joinType.toLowerCase()+', '+joinStrategy.toLowerCase()+')';
-        }
-        // Add LO-alias object to LO-info group in drawer.
-        Drawer.addObject({groupName: 'LO-info', objectName: 'LO-alias', title: 'Alias: '+alias,
-            html: _.template(Templates.nodeMenuTmpl, id, {variable:'data'})});
-        // Add LO-operator object to LO-info group in drawer.
-        Drawer.addObject({groupName: 'LO-info', objectName: 'LO-operator', title: 'Operator: '+operator,
-            html: ''});
-        // Add LO-schema object to LO-info group in drawer.
-        if (aliasInfo.hasOwnProperty('schema') && aliasInfo.schema) {
-            Drawer.addObject({groupName: 'LO-info', objectName: 'LO-schema', title: 'Schema:',
-                html: _.template(Templates.schemaTmpl, aliasInfo['schema'], {variable:'data'})});
-        }
-        $('button').tooltip();
-    },
-    /**
-     * Populate the overall script information in a drawer.
-     */
-    populateScriptInfo: function() {
-        Drawer.clearDrawer('right-drawer');
-        // Get all run stats data for all map-reduce jobs in the graph.
-        var data = [];
-        var scopeIds = _.map($('g.cluster'), function(element) { return $(element).attr('id') }).sort();
-        _.each(scopeIds, function(scopeId, index) {
-            var mrJobData = {};
-            mrJobData.runData = {};
-            mrJobData.scopeId = scopeId;
-            var mrRunStatsData = _.where(GraphModel.options.runStatsData.jobStatusMap, { 'scope': scopeId });
-            if (mrRunStatsData.length) {
-                mrJobData.runData = mrRunStatsData[0];
-            }
-            data.push(mrJobData);
-        });
-        // Add script-mr-jobs object to script-mr-jobs group in drawer.
-        Drawer.addObject({groupName: 'script-mr-jobs', objectName: 'script-mr-jobs', title: '',
-            html: _.template(Templates.mrJobsTmpl, data, {variable:'data'})});
+        $(drawerSelects.containerSel).remove();
     }
 };

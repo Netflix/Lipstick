@@ -13,19 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.well {
-    padding: 0px;
-    border: 3px solid #f3f3f3;
-    background-color: #ffffff;
-}
-
-/* OVERWRITE codemirror DEFAULTS */
-.CodeMirror-gutter {
-    border-right: 1px solid #dddddd;
-    background-color: #f3f3f3;
-}
-
-.CodeMirror-scroll {
-    border: 1px solid #dddddd;
-    height: 240px;
+/* Override some defaults */
+#myModal {
+    font-size: 0.75em;
 }
