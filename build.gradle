@@ -163,9 +163,9 @@ project(':lipstick-console') {
 
         if(project.hasProperty('withHadoop')) {
             println "building jar with Hadoop"
-            includeInJar 'org.apache.hadoop:hadoop-core:1.1.0'
+            includeInJar 'org.apache.hadoop:hadoop-core:' + (project.hasProperty('hadoopVersion') ? hadoopVersion : '1.1.0')
         } else {
-            compile 'org.apache.hadoop:hadoop-core:1.1.0'
+            compile 'org.apache.hadoop:hadoop-core:' + (project.hasProperty('hadoopVersion') ? hadoopVersion : '1.1.0')
         }
 
         compile 'org.hibernate:hibernate-entitymanager:3.6.0.Final'
