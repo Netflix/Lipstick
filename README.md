@@ -1,7 +1,8 @@
 Lipstick
 ========
 
-[![Build Status](https://netflixoss.ci.cloudbees.com/job/Lipstick-pull-requests/badge/icon)](https://netflixoss.ci.cloudbees.com/job/Lipstick-pull-requests/)
+Master build status: [![Master Build Status](https://netflixoss.ci.cloudbees.com/job/Lipstick-master/badge/icon)](https://netflixoss.ci.cloudbees.com/job/Lipstick-master/)
+Pull requests build status: [![Pull Requests Build Status](https://netflixoss.ci.cloudbees.com/job/Lipstick-pull-requests/badge/icon)](https://netflixoss.ci.cloudbees.com/job/Lipstick-pull-requests/)
 
 Lipstick combines a graphical depiction of a Pig workflow with information about the job as it executes.
 
