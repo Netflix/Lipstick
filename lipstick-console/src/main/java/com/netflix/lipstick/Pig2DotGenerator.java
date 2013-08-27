@@ -143,7 +143,7 @@ public class Pig2DotGenerator {
                         }
                     }
                 } catch (ParserException e) {
-                    e.printStackTrace();
+                    LOG.warn("Error comparing operator predecessors: ", e);
                     return false;
                 }
             }
