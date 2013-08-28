@@ -128,21 +128,26 @@ public class Pig2DotGenerator {
      * @return True if the schemas are equal, otherwise False
      */
     protected Boolean schemaEqualsPredecessor(P2jLogicalRelationalOperator oper) {
-        if (oper.getPredecessors().size() == 1 && oper.getSchemaString() != null) {
-            P2jLogicalRelationalOperator pred = p2jMap.get(oper.getPredecessors().get(0));
-            try {
-                if (pred.getSchemaString() != null) {
-                    String predString = pred.getSchemaString().substring(1, pred.getSchemaString().length() - 1);
-                    String operString = oper.getSchemaString().substring(1, oper.getSchemaString().length() - 1);
-                    return Schema.equals(Utils.getSchemaFromString(predString),
-                                         Utils.getSchemaFromString(operString),
-                                         true,
-                                         false);
+        if (oper.getSchemaString() != null) {
+            String operString = oper.getSchemaString().substring(1, oper.getSchemaString().length() - 1);
+            for (String predName : oper.getPredecessors()) {
+                P2jLogicalRelationalOperator pred = p2jMap.get(predName);
+                try {
+                    if (pred.getSchemaString() != null) {
+                        String predString = pred.getSchemaString().substring(1, pred.getSchemaString().length() - 1);
+                        if (!Schema.equals(Utils.getSchemaFromString(predString),
+                                           Utils.getSchemaFromString(operString),
+                                           true,
+                                           false)) {
+                            return false;
+                        }
+                    }
+                } catch (ParserException e) {
+                    LOG.warn("Error comparing operator predecessors: ", e);
+                    return false;
                 }
-            } catch (ParserException e) {
-                e.printStackTrace();
-                return false;
             }
+            return true;
         }
         return false;
     }
@@ -159,7 +164,6 @@ public class Pig2DotGenerator {
             && !oper.getOperator().equalsIgnoreCase("LOSplit")
             && !oper.getOperator().equalsIgnoreCase("LOFilter")
             && !oper.getOperator().equalsIgnoreCase("LODistinct")
-            && !oper.getOperator().equalsIgnoreCase("LOUnion")
             && !oper.getOperator().equalsIgnoreCase("LOLimit")
             && !oper.getOperator().equalsIgnoreCase("LOJoin")
             && !oper.getOperator().equalsIgnoreCase("LOCogroup")) {

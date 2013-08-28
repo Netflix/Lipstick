@@ -72,6 +72,7 @@ public class SchemaElement {
         return schemaElements;
     }
 
+    @JsonProperty("schema")
     public void setSchemaElements(List<SchemaElement> schemaElements) {
         this.schemaElements = schemaElements;
     }
