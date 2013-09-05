@@ -168,6 +168,8 @@ mrJobsTmpl: ' \
         <tr> \
             <% if (mrJobInfo.runData.trackingUrl) { %> \
                 <td><a href="<%= mrJobInfo.runData.trackingUrl %>" target="_blank"><%= mrJobInfo.runData.jobId %></a></td> \
+            <% } else if (mrJobInfo.runData.jobId) { %> \
+                <td><%= mrJobInfo.runData.jobId %></td> \
             <% } else { %> \
                 <td><%= mrJobInfo.scopeId %></td> \
             <% } %> \
