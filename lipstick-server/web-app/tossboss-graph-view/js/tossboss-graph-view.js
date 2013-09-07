@@ -115,6 +115,37 @@
         $(document).on('mouseleave click', '.sample-output-icon', function(event) {
             $(this).removeClass('mouseover');
         });
+
+        /* Mouse Panning of Zoomed Graph */
+        $(document).on('mousedown', GraphView.options.pageSel, function (event) {
+            this.prevPosY = event.pageY;
+            this.prevPosX = event.pageX;
+            this.mouseDown = true;
+        });
+        $(document).on('mousemove', GraphView.options.pageSel, function (event) {
+            if (this.mouseDown) {
+                var container = $(".graph-container");
+
+                /* Calculate the new scroll value, equal to the current value plus the
+                   distance the mouse has moved since the last event, avoiding negative
+                   scroll values */
+                var scrollLeft = Math.max(0, container.scrollLeft() + event.pageX - this.prevPosX);
+                var scrollTop = Math.max(0, container.scrollTop() + event.pageY - this.prevPosY);
+                
+                /* Store the last cursor position */
+                this.prevPosX = event.pageX;
+                this.prevPosY = event.pageY;
+
+                /* And adjust the scrolling */
+                container.scrollLeft(scrollLeft);
+                container.scrollTop(scrollTop);
+
+            }
+        });
+        $(document).on('mouseup', GraphView.options.pageSel, function(event) {
+            this.mouseDown = false;
+        });
+
     },
     /**
      * Draws the graph.
