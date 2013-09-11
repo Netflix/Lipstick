@@ -15,6 +15,7 @@
  */
 package com.netflix.lipstick.model.operators;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 
 /**
@@ -25,6 +26,7 @@ import javax.persistence.Entity;
  */
 @Entity
 public class P2jLOLoad extends P2jLogicalRelationalOperator {
+    @Column(length = 2048)
     public String getStorageLocation() {
         return storageLocation;
     }
