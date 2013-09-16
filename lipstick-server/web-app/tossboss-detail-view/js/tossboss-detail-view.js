@@ -138,9 +138,13 @@
                 'progressInfo': mrJobInfo.progressInfo
             };
             var counterHtml = _.template(Templates.counterTmpl, mrJobInfo.counters, {variable: 'data'});
+            var trackingHtml = trackingUrl 
+                                ? '<a href="'+trackingUrl+'" target="_blank"><h3>'+jobId+'</h3></a>' 
+                                : '<h3>'+jobId+'</h3>';
+
             // Add MRJob-jobId object to MRJob-info group in DetailView.
-            DetailView.addObject({groupName: 'MRJob-info', objectName: 'MRJob-jobId', title: 'Job ID:',
-                html: '<a href="'+trackingUrl+'" target="_blank"><h3>'+jobId+'</h3></a>'});
+              DetailView.addObject({groupName: 'MRJob-info', objectName: 'MRJob-jobId', title: 'Job ID:',
+                  html: trackingHtml});
             // Add MRJob-progress object to MRJob-info group in DetailView.
             DetailView.addObject({groupName: 'MRJob-info', objectName: 'MRJob-progress', title: 'Progress:',
                 html: _.template(Templates.progressTmpl, progressData, {variable: 'data'})});
