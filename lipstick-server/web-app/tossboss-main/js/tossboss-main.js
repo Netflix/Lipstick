@@ -60,7 +60,6 @@ $(function () {
     $('.graph-type-menu button').on('click', function(e) {
         Script.removeHighlight();
         Script.options.myCodeMirror.scrollTo(0,0);
-        GraphView.zoom(1);
         if ($(this).context.id === 'optimized-graph-btn') {
             $('#unoptimized-graph-btn').removeClass('active').removeClass('btn-primary').removeAttr('disabled');
             $('#optimized-graph-btn').addClass('active').addClass('btn-primary').attr('disabled','disabled');
@@ -71,7 +70,6 @@ $(function () {
             $('#unoptimized-graph-btn').addClass('active').addClass('btn-primary').attr('disabled','disabled');
             GraphView.drawGraph('unoptimized');
         }
-        GraphView.zoom('reset');
         GraphView.addDataToGraph();
         GraphModel.getRunStats();
     });
