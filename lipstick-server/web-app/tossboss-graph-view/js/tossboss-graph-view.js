@@ -48,7 +48,8 @@
         edgeSel:  'g.edge',
         pageSel:  '.page',
         runningMapSel: 'g.cluster.running-map > polygon',
-        runningRedSel: 'g.cluster.running-reduce > polygon'
+        runningRedSel: 'g.cluster.running-reduce > polygon',
+        graphState : {},
     },
     /**
      * Start all custom event listeners.
@@ -122,6 +123,16 @@
      * @param {String} type The graph type to draw ('optimized' or 'unoptimized')
      */
     drawGraph: function(type) {
+        var lowerType = type.toLowerCase();
+        // Cache current scroll position and zoom
+        GraphView.options.graphState[GraphModel.options.graphType.toLowerCase()] = {
+            scroll : { 
+                x : $(GraphView.options.pageSel).scrollLeft(),
+                y : $(GraphView.options.pageSel).scrollTop(),
+            },
+            zoom : GraphView.options.zoomLevel
+        };
+
         // Set GraphModel graph type and get SVG data for type.
         GraphModel.options.graphType = type.toLowerCase();
         var svgData = GraphModel.getSvgData();
@@ -130,8 +141,18 @@
         $(GraphView.options.graphSel).html(svgData);
         // The SVG has a white background polygon, remove it.
         $('g.graph > polygon').remove();
-        scrollTo(0,0);
         $('.page').scrollTop(0);
+
+        // Restore to previous state if it exists
+        if(GraphView.options.graphState[lowerType]) {
+            GraphView.zoom(GraphView.options.graphState[lowerType].zoom);
+            $(GraphView.options.pageSel).scrollTop(GraphView.options.graphState[lowerType].scroll.y);
+            $(GraphView.options.pageSel).scrollLeft(GraphView.options.graphState[lowerType].scroll.x);
+        } else {
+            GraphView.zoom('reset');
+            scrollTo(0,0);
+        }
+
         // Bind events.
         $('.node').on('click', function(e) {
             e.stopPropagation();
