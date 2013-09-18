@@ -118,9 +118,18 @@
 
         /* Mouse Panning of Zoomed Graph */
         $(document).on('mousedown', GraphView.options.pageSel, function (event) {
+            target = $(event.target);
+
+            /* Click is on an inner node with text, don't enable drag 
+               behavior so the text can be selected */
+            if (target.parent().is("g.node") || target.parent().is("g.edge")) {
+                return true;
+            }
             this.prevPosY = event.pageY;
             this.prevPosX = event.pageX;
             this.mouseDown = true;
+            $(".graph-container").css('cursor', 'move');
+            return false;
         });
         $(document).on('mousemove', GraphView.options.pageSel, function (event) {
             if (this.mouseDown) {
@@ -142,8 +151,11 @@
 
             }
         });
-        $(document).on('mouseup', GraphView.options.pageSel, function(event) {
-            this.mouseDown = false;
+        $.each(['mouseleave', 'mouseup'], function(i, eventName) {
+            $(document).on(eventName, GraphView.options.pageSel, function(event) {
+                this.mouseDown = false;
+                $(".graph-container").css( 'cursor', 'auto' );
+            });
         });
 
     },
