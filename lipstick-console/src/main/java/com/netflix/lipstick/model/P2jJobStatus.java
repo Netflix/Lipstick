@@ -151,8 +151,16 @@ public class P2jJobStatus {
         this.scope = scope;
     }
 
+    public long getStartTime() {
+        return startTime;
+    }
+
     public void setStartTime(long startTime) {
         this.startTime = startTime;
+    }
+
+    public long getFinishTime() {
+        return finishTime;
     }
 
     public void setFinishTime(long finishTime) {
