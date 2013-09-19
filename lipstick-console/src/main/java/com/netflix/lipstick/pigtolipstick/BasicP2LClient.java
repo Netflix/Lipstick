@@ -265,28 +265,40 @@ public class BasicP2LClient implements P2LClient {
     }
 
     protected void updatePlanStatusForCompletedJobId(P2jPlanStatus planStatus, String jobId) {
-        // updatePlanStatusForCompletedJobId(planStatus, jobId);
-        // // public RunningJob getJob(JobID jobid) throws IOException {
-        // RunningJob rjob = jobClient.getJob(jobID);
+        LOG.info("Updating plan status for completed job " + jobId);
         updatePlanStatusForJobId(planStatus, jobId);        
         JobClient jobClient = PigStats.get().getJobClient();
         JobID jobID = JobID.forName(jobId);
-        // RunningJob rj = jobClient.getJob(jobId);
-        long startTime = 0;
-        long finishTime = 0;
+        long startTime = Long.MAX_VALUE;
+        long finishTime = Long.MIN_VALUE;
+        /* The JobClient doesn't expose a way to get the Start and Finish time
+           of the over all job[1] sadly, so we're pulling out the min task start
+           time and max task finish time and using these to approximate.
+
+           [1] - Which is really dumb.  The data obviously exists, it gets rendered
+           in the job tracker via the JobInProgress but sadly this is internal
+           to the remote job tracker so we don't have access to this 
+           information. */
         try {
-            List<TaskReport> reports = Lists.newArrayList(); //<TaskReport>();
+            List<TaskReport> reports = Lists.newArrayList();
             reports.addAll(Arrays.asList(jobClient.getMapTaskReports(jobID)));
             reports.addAll(Arrays.asList(jobClient.getReduceTaskReports(jobID)));
             reports.addAll(Arrays.asList(jobClient.getCleanupTaskReports(jobID)));
             reports.addAll(Arrays.asList(jobClient.getSetupTaskReports(jobID)));
             for(TaskReport rpt : reports) {
-                startTime = (0 == startTime) ? rpt.getStartTime() : Math.min(startTime, rpt.getStartTime());
+                /* rpt.getStartTime() sometimes returns zero meaning it does
+                   not know what time it started so we need to prevent using 
+                   this or we'll lose the actual lowest start time */
+                long taskStartTime = rpt.getStartTime();
+                if (0 != taskStartTime) {
+                    startTime = Math.min(startTime, taskStartTime);
+                }                   
                 finishTime = Math.max(finishTime, rpt.getFinishTime());
             }
             P2jJobStatus jobStatus = planStatus.getJob(jobId);
             jobStatus.setStartTime(startTime);
             jobStatus.setFinishTime(finishTime);
+            LOG.info("Determined start and finish times for job " + jobId);
         } catch (IOException e) {
             LOG.error("Error getting job info.", e);
         }
