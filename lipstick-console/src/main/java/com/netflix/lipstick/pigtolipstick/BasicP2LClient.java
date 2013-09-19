@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.List;
+import java.util.Arrays;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
@@ -45,6 +47,7 @@ import org.apache.pig.tools.pigstats.ScriptState;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 import com.netflix.lipstick.MRPlanCalculator;
 import com.netflix.lipstick.P2jPlanGenerator;
 import com.netflix.lipstick.model.P2jCounters;
@@ -200,7 +203,7 @@ public class BasicP2LClient implements P2LClient {
 
         // Update the status of this job
         P2jPlanStatus planStatus = new P2jPlanStatus();
-        updatePlanStatusForJobId(planStatus, jobId);
+        updatePlanStatusForCompletedJobId(planStatus, jobId);
         psClient.saveStatus(planId, planStatus);
 
         // Get sample output for the job
@@ -260,6 +263,37 @@ public class BasicP2LClient implements P2LClient {
             planStatus.updateWith(status);
         }
     }
+
+    protected void updatePlanStatusForCompletedJobId(P2jPlanStatus planStatus, String jobId) {
+        // updatePlanStatusForCompletedJobId(planStatus, jobId);
+        // // public RunningJob getJob(JobID jobid) throws IOException {
+        // RunningJob rjob = jobClient.getJob(jobID);
+        updatePlanStatusForJobId(planStatus, jobId);        
+        JobClient jobClient = PigStats.get().getJobClient();
+        JobID jobID = JobID.forName(jobId);
+        // RunningJob rj = jobClient.getJob(jobId);
+        long startTime = 0;
+        long finishTime = 0;
+        try {
+            List<TaskReport> reports = Lists.newArrayList(); //<TaskReport>();
+            reports.addAll(Arrays.asList(jobClient.getMapTaskReports(jobID)));
+            reports.addAll(Arrays.asList(jobClient.getReduceTaskReports(jobID)));
+            reports.addAll(Arrays.asList(jobClient.getCleanupTaskReports(jobID)));
+            reports.addAll(Arrays.asList(jobClient.getSetupTaskReports(jobID)));
+            for(TaskReport rpt : reports) {
+                startTime = (0 == startTime) ? rpt.getStartTime() : Math.min(startTime, rpt.getStartTime());
+                finishTime = Math.max(finishTime, rpt.getFinishTime());
+            }
+            P2jJobStatus jobStatus = planStatus.getJob(jobId);
+            jobStatus.setStartTime(startTime);
+            jobStatus.setFinishTime(finishTime);
+        } catch (IOException e) {
+            LOG.error("Error getting job info.", e);
+        }
+
+    }
+        
+
 
     /**
      * Build a P2jJobStatus object for the map/reduce job with id jobId.
