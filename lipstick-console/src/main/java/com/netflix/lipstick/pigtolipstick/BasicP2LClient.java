@@ -70,6 +70,7 @@ public class BasicP2LClient implements P2LClient {
     private static final Log LOG = LogFactory.getLog(BasicP2LClient.class);
 
     protected static final String JOB_NAME_PROP = "jobName";
+    protected static final String GENIE_JOB_ID = "genie.job.id";
 
     protected boolean planFailed = false;
     protected String planId;
@@ -161,10 +162,15 @@ public class BasicP2LClient implements P2LClient {
                 } else {
                     plans.setJobName("unknown");
                 }
+                if (props.containsKey(GENIE_JOB_ID)) {
+                    // point of Genie integration
+                    // if genie provides a UUID via property, use it
+                    plans.setUuid(props.getProperty(GENIE_JOB_ID));
+                }
                 plans.getStatus().setStartTime();
                 plans.getStatus().setStatusText(StatusText.running);
                 psClient.savePlan(plans);
-                
+
 
             } catch (Exception e) {
                 LOG.error("Caught unexpected exception generating json plan.", e);
