@@ -184,7 +184,7 @@ mrJobsTmpl: ' \
             <% } %> \
             <% if ((mrJobInfo.runData.startTime) && (mrJobInfo.runData.finishTime)) { %> \
               <% var duration = moment().startOf("day").add("ms", (mrJobInfo.runData.finishTime - mrJobInfo.runData.startTime)) %> \
-              <td><%= duration.format("H:m:s") %></td> \
+              <td><%= duration.format("HH:mm:ss") %></td> \
             <% } else { %> \
               <td>--</td> \
             <% } %> \
