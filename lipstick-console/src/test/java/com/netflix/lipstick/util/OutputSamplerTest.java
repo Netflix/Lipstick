@@ -168,4 +168,19 @@ public class OutputSamplerTest {
         f.setAccessible(true);
         f.set(js, stores);
     }
+
+    class BaseClass {
+        public String BaseClsAttr = "foo";
+    }
+
+    class ChildClass extends BaseClass {};
+
+    @Test
+    public void testGetInherittedFieldValue() throws Exception {
+        OutputSampler sampler = new OutputSampler(null);
+        ChildClass obj = new ChildClass();
+        String value = (String)sampler.getInherittedFieldValue(obj, "BaseClsAttr");
+        Assert.assertEquals("foo", value);
+    }
+    
 }
