@@ -176,10 +176,10 @@ public class OutputSamplerTest {
     class ChildClass extends BaseClass {};
 
     @Test
-    public void testGetInherittedFieldValue() throws Exception {
+    public void testGetInheritedFieldValue() throws Exception {
         OutputSampler sampler = new OutputSampler(null);
         ChildClass obj = new ChildClass();
-        String value = (String)sampler.getInherittedFieldValue(obj, "BaseClsAttr");
+        String value = (String)sampler.getInheritedFieldValue(obj, "BaseClsAttr");
         Assert.assertEquals("foo", value);
     }
     
