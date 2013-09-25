@@ -18,98 +18,19 @@
 package org.apache.pig.tools.grunt;
 
 import java.io.BufferedReader;
-import java.util.ArrayList;
 
-import jline.ConsoleReader;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.pig.LipstickPigServer;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.impl.PigContext;
-import org.apache.pig.impl.util.LogUtils;
-import org.apache.pig.tools.pigstats.PigStatsUtil;
 
-public class LipstickGrunt {
-    private final Log log = LogFactory.getLog(getClass());
-
-    BufferedReader in;
-    LipstickPigServer pig;
-    GruntParser parser;
+public class LipstickGrunt extends Grunt {
 
     public LipstickGrunt(BufferedReader in, PigContext pigContext) throws ExecException {
-        this.in = in;
+        super(in, pigContext);
         this.pig = new LipstickPigServer(pigContext);
-
-        if (in != null) {
-            parser = new GruntParser(in);
+        if (this.in != null) {
+            parser = new GruntParser(this.in);
             parser.setParams(pig);
         }
     }
-
-    public void setConsoleReader(ConsoleReader c) {
-        c.addCompletor(new PigCompletorAliases(pig));
-        c.addCompletor(new PigCompletor());
-        parser.setConsoleReader(c);
-    }
-
-    public void run() {
-        boolean verbose = "true".equalsIgnoreCase(pig.getPigContext().getProperties().getProperty("verbose"));
-        while (true) {
-            try {
-                PigStatsUtil.getEmptyPigStats();
-                parser.setInteractive(true);
-                parser.parseStopOnError();
-                break;
-            } catch (Throwable t) {
-                LogUtils.writeLog(t,
-                                  pig.getPigContext().getProperties().getProperty("pig.logfile"),
-                                  log,
-                                  verbose,
-                                  "Pig Stack Trace");
-                parser.ReInit(in);
-            }
-        }
-    }
-
-    public int[] exec() throws Throwable {
-        boolean verbose = "true".equalsIgnoreCase(pig.getPigContext().getProperties().getProperty("verbose"));
-        try {
-            PigStatsUtil.getEmptyPigStats();
-            parser.setInteractive(false);
-            return parser.parseStopOnError();
-        } catch (Throwable t) {
-            LogUtils.writeLog(t,
-                              pig.getPigContext().getProperties().getProperty("pig.logfile"),
-                              log,
-                              verbose,
-                              "Pig Stack Trace");
-            throw (t);
-        }
-    }
-
-    public void checkScript(String scriptFile) throws Throwable {
-        boolean verbose = "true".equalsIgnoreCase(pig.getPigContext().getProperties().getProperty("verbose"));
-        try {
-            parser.setInteractive(false);
-            parser.setValidateEachStatement(true);
-            boolean dontPrintOutput = true;
-            parser.processExplain(null,
-                                  scriptFile,
-                                  false,
-                                  "text",
-                                  null,
-                                  new ArrayList<String>(),
-                                  new ArrayList<String>(),
-                                  dontPrintOutput);
-        } catch (Throwable t) {
-            LogUtils.writeLog(t,
-                              pig.getPigContext().getProperties().getProperty("pig.logfile"),
-                              log,
-                              verbose,
-                              "Pig Stack Trace");
-            throw (t);
-        }
-    }
-
 }
