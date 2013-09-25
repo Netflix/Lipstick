@@ -48,7 +48,8 @@
         edgeSel:  'g.edge',
         pageSel:  '.page',
         runningMapSel: 'g.cluster.running-map > polygon',
-        runningRedSel: 'g.cluster.running-reduce > polygon'
+        runningRedSel: 'g.cluster.running-reduce > polygon',
+        graphState : {},
     },
     /**
      * Start all custom event listeners.
@@ -115,6 +116,49 @@
         $(document).on('mouseleave click', '.sample-output-icon', function(event) {
             $(this).removeClass('mouseover');
         });
+
+        /* Mouse Panning of Zoomed Graph */
+        $(document).on('mousedown', GraphView.options.pageSel, function (event) {
+            target = $(event.target);
+
+            /* Click is on an inner node with text, don't enable drag 
+               behavior so the text can be selected */
+            if (target.parent().is("g.node") || target.parent().is("g.edge")) {
+                return true;
+            }
+            this.prevPosY = event.pageY;
+            this.prevPosX = event.pageX;
+            this.mouseDown = true;
+            $(".graph-container").css('cursor', 'move');
+            return false;
+        });
+        $(document).on('mousemove', GraphView.options.pageSel, function (event) {
+            if (this.mouseDown) {
+                var container = $(".graph-container");
+
+                /* Calculate the new scroll value, equal to the current value plus the
+                   distance the mouse has moved since the last event, avoiding negative
+                   scroll values */
+                var scrollLeft = Math.max(0, container.scrollLeft() + event.pageX - this.prevPosX);
+                var scrollTop = Math.max(0, container.scrollTop() + event.pageY - this.prevPosY);
+                
+                /* Store the last cursor position */
+                this.prevPosX = event.pageX;
+                this.prevPosY = event.pageY;
+
+                /* And adjust the scrolling */
+                container.scrollLeft(scrollLeft);
+                container.scrollTop(scrollTop);
+
+            }
+        });
+        $.each(['mouseleave', 'mouseup'], function(i, eventName) {
+            $(document).on(eventName, GraphView.options.pageSel, function(event) {
+                this.mouseDown = false;
+                $(".graph-container").css( 'cursor', 'auto' );
+            });
+        });
+
     },
     /**
      * Draws the graph.
@@ -122,6 +166,16 @@
      * @param {String} type The graph type to draw ('optimized' or 'unoptimized')
      */
     drawGraph: function(type) {
+        var lowerType = type.toLowerCase();
+        // Cache current scroll position and zoom
+        GraphView.options.graphState[GraphModel.options.graphType.toLowerCase()] = {
+            scroll : { 
+                x : $(GraphView.options.pageSel).scrollLeft(),
+                y : $(GraphView.options.pageSel).scrollTop(),
+            },
+            zoom : GraphView.options.zoomLevel
+        };
+
         // Set GraphModel graph type and get SVG data for type.
         GraphModel.options.graphType = type.toLowerCase();
         var svgData = GraphModel.getSvgData();
@@ -130,8 +184,18 @@
         $(GraphView.options.graphSel).html(svgData);
         // The SVG has a white background polygon, remove it.
         $('g.graph > polygon').remove();
-        scrollTo(0,0);
         $('.page').scrollTop(0);
+
+        // Restore to previous state if it exists
+        if(GraphView.options.graphState[lowerType]) {
+            GraphView.zoom(GraphView.options.graphState[lowerType].zoom);
+            $(GraphView.options.pageSel).scrollTop(GraphView.options.graphState[lowerType].scroll.y);
+            $(GraphView.options.pageSel).scrollLeft(GraphView.options.graphState[lowerType].scroll.x);
+        } else {
+            GraphView.zoom('reset');
+            scrollTo(0,0);
+        }
+
         // Bind events.
         $('.node').on('click', function(e) {
             e.stopPropagation();
