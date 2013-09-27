@@ -4,12 +4,13 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hive.ql.QueryPlan;
@@ -17,9 +18,8 @@ import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.exec.Operator;
 import org.apache.hadoop.hive.ql.exec.Task;
 import org.apache.hadoop.hive.ql.hooks.HookContext;
-import org.apache.hadoop.hive.ql.plan.api.Adjacency;
-import org.apache.hadoop.hive.ql.plan.api.Stage;
-import org.apache.hadoop.hive.ql.plan.api.TaskType;
+import org.apache.hadoop.hive.ql.plan.OperatorDesc;
+import org.apache.hadoop.hive.ql.plan.api.StageType;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.stats.ClientStatsPublisher;
 import org.apache.hadoop.mapred.Counters;
@@ -51,67 +51,63 @@ public class BasicH2LClient implements H2LClient, ClientStatsPublisher {
 
     private static final Log LOG = LogFactory.getLog(H2LClient.class);
 
+    protected static final Pattern STAGEID_PATTERN = Pattern.compile("^.*\\((Stage\\-\\d+)\\)$", Pattern.DOTALL);
+
     protected static final String USER_NAME_PROP = "user.name";
     protected static final String JOB_NAME_PROP = "jobName";
+    protected static final String LIPSTICK_URL_PROP = "lipstick.server.url";
 
-    protected PigStatusClient psClient;
-    protected JobClient jobClient;
+    protected static PigStatusClient psClient;
+    protected static JobClient jobClient;
 
-    protected boolean planFailed = false;
-    protected String planId;
-    protected QueryPlan queryPlan;
+    protected static volatile boolean planFailed = false;
+    protected static String planId;
+    protected static QueryPlan queryPlan;
 
     private static Object instanceLock = new Object();
     private static BasicH2LClient instance;
 
-    private static Set<String> completedStages = Sets.newHashSet();
-    private static Set<String> readyOrRunningStages = Sets.newHashSet();
+    private static Set<String> completedJobIds = Sets.newHashSet();
+    private static Map<String, P2jSampleOutputList> successfulJobIdsToSampleOutput = Maps.newHashMap();
+    private static Set<String> runningJobIds = Sets.newHashSet();
+    private static Map<String, String> jobIdToStageIdMap = Maps.newConcurrentMap();
     private static Map<String, Task<? extends Serializable>> stageIdToExecTaskMap = Maps.newHashMap();
 
-    public UUID id = UUID.randomUUID();
-
-    /**
-     * Instantiates a new BasicH2LClient using RestfulPigStatusClient with
-     * serviceUrl.
-     *
-     * @param serviceUrl
-     *            the url to connect to the Lipstick Server
-     */
-    private BasicH2LClient(String serviceUrl) {
-        psClient = new RestfulPigStatusClient(serviceUrl);
-        try {
-            jobClient = new JobClient(new JobConf(SessionState.get().getConf()));
-        } catch (IOException e) {
-            e.printStackTrace();
-            jobClient = null;
+    //Will be called in Hive11 or greater as a listener.
+    //From empirical evidence, this seems to always be called after 'preExecute'
+    public BasicH2LClient() {
+        synchronized(instanceLock) {
+            if(instance == null) {
+                try {
+                    String serviceUrl = SessionState.get().getConf().getAllProperties().getProperty(LIPSTICK_URL_PROP);
+                    psClient = new RestfulPigStatusClient(serviceUrl);
+                    jobClient = new JobClient(new JobConf(SessionState.get().getConf()));
+                } catch (IOException e) {
+                    LOG.error("Caught unexpected exception creating BasicH2LClient.", e);
+                }
+                instance = this;
+            }
         }
     }
 
-    public static BasicH2LClient getInstance(String serviceUrl) {
+    public static BasicH2LClient getInstance() {
         synchronized(instanceLock) {
             if(instance == null) {
-                instance = new BasicH2LClient(serviceUrl);
+                instance = new BasicH2LClient();
             }
             return instance;
         }
     }
 
     @Override
-    public String getPlanId() {
-        return planId;
-    }
-
-    @Override
     public synchronized void preExecute(HookContext context) {
-        if (context != null && context.getQueryPlan() != null && this.queryPlan == null) {
+        if (context != null && context.getQueryPlan() != null) {
             try {
                 queryPlan = context.getQueryPlan();
                 planId = queryPlan.getQueryId();
 
-                P2jPlanPackage plans = new P2jPlanPackage(new HivePlanGenerator(queryPlan).getP2jPlan(),
-                                                          new HivePlanGenerator(queryPlan).getP2jPlan(),
-                                                          queryPlan.getQueryString(),
-                                                          planId);
+                P2jPlanPackage plans = new P2jPlanPackage(new HivePlanGenerator(queryPlan).getP2jPlan(), new HivePlanGenerator(queryPlan).getP2jPlan(),
+                                                          queryPlan.getQueryString(), planId);
 
                 stageIdToExecTaskMap = buildStageIdToExecTaskMap(queryPlan);
 
@@ -129,15 +125,6 @@ public class BasicH2LClient implements H2LClient, ClientStatsPublisher {
                 plans.getStatus().setStartTime();
                 plans.getStatus().setStatusText(StatusText.running);
                 psClient.savePlan(plans);
-
-                Thread monitorThread = new Thread() {
-                    @Override
-                    public void run() {
-                        monitor();
-                    }
-                };
-
-                monitorThread.start();
             } catch (Exception e) {
                 LOG.warn("Caught unexpected exception generating json plan.", e);
             }
@@ -145,222 +132,157 @@ public class BasicH2LClient implements H2LClient, ClientStatsPublisher {
     }
 
     @Override
-    public void postExecute() {
-        try {
-            boolean shouldSave = false;
+    public void run(Map<String, Double> counters, String jobId) {
+        if(jobClient != null) {
+            if(!runningJobIds.contains(jobId)) {
+                runningJobIds.add(jobId);
+                jobIdToStageIdMap.put(jobId, getStageIdFromJobId(jobId));
+            }
+
             P2jPlanStatus planStatus = new P2jPlanStatus();
+            List<String> newlyCompletedJobs = Lists.newLinkedList();
+            float partialCompletionSum = 0.0f;
+            for(String runningJobId : runningJobIds.toArray(new String[0])) {
+                P2jJobStatus jobStatus = buildJobStatus(runningJobId);
+                planStatus.updateWith(jobStatus);
 
-            for (Stage s : queryPlan.getQueryPlan().getStageList()) {
-                shouldSave ^= updatePlanStatus(s, planStatus);
+                if(jobStatus.getIsComplete()) {
+                    if(jobStatus.getIsSuccessful()) {
+                        successfulJobIdsToSampleOutput.put(runningJobId, new P2jSampleOutputList());
+                    } else {
+                        planFailed = true;
+                        planStatus.setStatusText(StatusText.failed);
+                    }
+                    newlyCompletedJobs.add(runningJobId);
+                } else {
+                    partialCompletionSum += 100.0f * jobStatus.getMapProgress() + 100.0f * jobStatus.getReduceProgress();
+                }
             }
 
-            if(shouldSave) {
-                psClient.saveStatus(planId, planStatus);
+            for(String newlyCompletedJob : newlyCompletedJobs) {
+                runningJobIds.remove(newlyCompletedJob);
+                completedJobIds.add(newlyCompletedJob);
             }
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+
+            planStatus.setProgress(calculatePlanProgress(partialCompletionSum));
+            psClient.saveStatus(planId, planStatus);
+            getSampleOutputs();
         }
     }
 
     @Override
-    public void run(Map<String, Double> counters, String jobId) {
-        //NoOp for now
+    public void postExecute() {
+        P2jPlanStatus planStatus = new P2jPlanStatus();
+
+        if(!planFailed) {
+            planStatus.setStatusText(StatusText.finished);
+            planStatus.setProgress(100);
+        }
+
+        planStatus.setEndTime();
+        psClient.saveStatus(planId, planStatus);
+        getSampleOutputs();
     }
 
-    private void monitor() {
-        while (true) {
-            try {
-                P2jPlanStatus planStatus = new P2jPlanStatus();
-                boolean saveStatus = false;
+    protected int calculatePlanProgress(float partialProgress) {
+        float totalPossibleProgress = stageIdToExecTaskMap.size() * 200.0f;
+        float completedProgress = completedJobIds.size() * 200.0f;
+        float currentProgress = completedProgress + partialProgress;
 
-                List<Stage> stageList = queryPlan.getQueryPlan().getStageList();
-                List<Adjacency> aList = queryPlan.getQueryPlan().getStageGraph().getAdjacencyList();
-                Set<String> currentStages = getCurrentStageNames(stageList, aList, Sets.newHashSet(completedStages));
-
-                for (Stage s : stageList) {
-                    if (currentStages.contains(s.getStageId())) {
-                        saveStatus ^= updatePlanStatus(s, planStatus);
-                    }
-                }
-
-                if (saveStatus) {
-                    psClient.saveStatus(planId, planStatus);
-                }
-            } catch (Exception e) {
-                LOG.info("Caught unexpected exception during monitor.", e);
-            }
-            try {
-                Thread.sleep(5000);
-            } catch (Exception e) {
-
-            }
-        }
+        return (int)(100.0f * currentProgress/totalPossibleProgress);
     }
 
-    private Set<String> getCurrentStageNames(List<Stage> fullStageList, List<Adjacency> aList, Set<String> completedStageNames) {
-        Set<String> roots = Sets.newHashSet();
-        Map<String, List<String>> nodeToChildrenMap = Maps.newHashMap();
-        //Add all stage ids to roots
-        for(Stage s : fullStageList) {
-            roots.add(s.getStageId());
-        }
-
-        //Remove all stage ids that are children from the roots set
-        //Populate the node to children map
-        if(aList != null) {
-            for(Adjacency adj : aList) {
-                String nodeName = adj.getNode();
-                nodeToChildrenMap.put(nodeName, new LinkedList<String>());
-                for(String child : adj.getChildren()) {
-                    roots.remove(child);
-                    nodeToChildrenMap.get(nodeName).add(child);
+    /**
+     * Method should continue to get called during progress updates b/c output is not always available immediately after a success.
+     */
+    protected void getSampleOutputs() {
+        for(String jobId : successfulJobIdsToSampleOutput.keySet()) {
+            P2jSampleOutputList currSample = successfulJobIdsToSampleOutput.get(jobId);
+            if(currSample.getSampleOutputList() == null || currSample.getSampleOutputList().size() == 0) {
+                String stageId = jobIdToStageIdMap.get(jobId);
+                P2jSampleOutputList output = getSampleOutput(stageId);
+                if(output != null && output.getSampleOutputList() != null && output.getSampleOutputList().size() > 0) {
+                    currSample = output;
+                    psClient.saveSampleOutput(planId, formatStageId(stageId), output);
                 }
             }
         }
-
-        //Replace completed stages w/ their children
-        //Continue until we've exhausted the completed stages
-        while(completedStageNames.size() > 0) {
-            List<String> completedNamesToRemove = Lists.newLinkedList();
-            for(String completedStage : completedStageNames) {
-                if(roots.contains(completedStage)) {
-                    roots.remove(completedStage);
-
-                    if(nodeToChildrenMap.get(completedStage) != null) {
-                        for(String child : nodeToChildrenMap.get(completedStage)) {
-                            roots.add(child);
-                        }
-                    }
-
-                    completedNamesToRemove.add(completedStage);
-                }
-            }
-            for(String toRemove : completedNamesToRemove) {
-                completedStageNames.remove(toRemove);
-            }
-        }
-
-        return roots;
-    }
-
-    private boolean updatePlanStatus(Stage s, P2jPlanStatus planStatus) {
-        try {
-            String stageId = s.getStageId();
-            P2jJobStatus jobStatus = null;
-            String formattedJobName = "scope-" + stageId.replaceAll("-", "");
-            if(!completedStages.contains(stageId) && stageIdToExecTaskMap.get(stageId).getJobID() != null) {
-                jobStatus = buildCompletedJobStatusMap(stageIdToExecTaskMap.get(stageId).getJobID(), formattedJobName);
-            } else if (!readyOrRunningStages.contains(stageId) && !completedStages.contains(stageId)) {
-                jobStatus = buildRunningJobStatusMap(s, formattedJobName);
-                readyOrRunningStages.add(stageId);
-            } else {
-                return false;
-            }
-
-            if (s.isDone() && jobStatus != null) {
-                readyOrRunningStages.remove(stageId);
-                completedStages.add(stageId);
-
-                if(!jobStatus.getIsSuccessful()  && !planFailed) {
-                    planFailed = true;
-                    planStatus.setStatusText(StatusText.failed);
-                }
-
-                //Get Sample Output if plan hasn't failed
-                if(!planFailed) {
-                    P2jSampleOutputList sampleList = getSampleOutput(stageId);
-                    psClient.saveSampleOutput(planId, formattedJobName, sampleList);
-                }
-
-                planStatus.setProgress((int)(100f * ((float) completedStages.size() / (float) queryPlan.getQueryPlan().getStageList().size())));
-
-                if(completedStages.size() == queryPlan.getQueryPlan().getStageList().size() && !planFailed) {
-                    planStatus.setStatusText(StatusText.finished);
-                    planStatus.setProgress(100);
-                    planStatus.setEndTime();
-                }
-            }
-            if(jobStatus != null) {
-                planStatus.updateWith(jobStatus);
-                return true;
-            }
-        } catch(Exception e) {
-            LOG.info("Caught unexpected exception during updatePlanStatus.", e);
-        }
-        return false;
     }
 
     protected P2jSampleOutputList getSampleOutput(String stageId) {
         P2jSampleOutputList sampleOutputList = new P2jSampleOutputList();
 
-        for (Task<? extends Serializable> task : getAllTasks(queryPlan.getRootTasks(), null)) {
-            if(task.getId().equals(stageId)) {
-                try {
-                    for(Operator<? extends Serializable> op : getAllOperators(task)) {
-                        //Produce sampleOutput for each FileSinkOperator
-                        if(op instanceof FileSinkOperator) {
-                            FileSinkOperator fsop = (FileSinkOperator)op;
+        try {
+            Task<? extends Serializable> task = stageIdToExecTaskMap.get(stageId);
+            for(Operator<? extends OperatorDesc> op : getAllOperators(task)) {
+                //Produce sampleOutput for each FileSinkOperator
+                if(op instanceof FileSinkOperator) {
+                    FileSinkOperator fsop = (FileSinkOperator)op;
 
-                            if(fsop.getConf().getTableInfo().getInputFileFormatClassName().equals(SequenceFileInputFormat.class.getCanonicalName())) {
-                                HiveOutputSampler hos = new HiveOutputSampler(fsop);
-                                for(SampleOutput sample : hos.getSampleOutputs(10, 1024)) {
-                                    P2jSampleOutput p2jSampleOutput = new P2jSampleOutput();
-                                    p2jSampleOutput.setSchemaString(sample.getSchema());
-                                    p2jSampleOutput.setSampleOutput(sample.getOutput());
-                                    sampleOutputList.add(p2jSampleOutput);
-                                }
-                            }
+                    if(fsop.getConf().getTableInfo().getInputFileFormatClassName().equals(SequenceFileInputFormat.class.getCanonicalName())) {
+                        HiveOutputSampler hos = new HiveOutputSampler(fsop);
+                        for(SampleOutput sample : hos.getSampleOutputs(10, 1024)) {
+                            P2jSampleOutput p2jSampleOutput = new P2jSampleOutput();
+                            p2jSampleOutput.setSchemaString(sample.getSchema());
+                            p2jSampleOutput.setSampleOutput(sample.getOutput());
+                            sampleOutputList.add(p2jSampleOutput);
                         }
                     }
-                } catch(Exception e) {
-                    LOG.info("Caught unexpected exception trying to get sample output for stage [" + stageId + "].", e);
                 }
             }
+        } catch(Exception e) {
+            LOG.info("Caught unexpected exception trying to get sample output for stage [" + stageId + "].", e);
         }
 
         return sampleOutputList;
     }
 
     protected Map<String, Task<? extends Serializable>> buildStageIdToExecTaskMap(QueryPlan queryPlan) {
-        Map<String, Task<? extends Serializable>> stageIdToExecTaskMap = Maps.newHashMap();
-        try {
-            Set<String> stageIds = Sets.newHashSet();
-            for(Stage s : queryPlan.getQueryPlan().getStageList()) {
-                stageIds.add(s.getStageId());
-            }
+        Map<String, Task<? extends Serializable>> stageIdToTaskMap = getFullTaskMap(queryPlan.getRootTasks(), null);
 
-            for(Task<? extends Serializable> task : getAllTasks(queryPlan.getRootTasks(), null)) {
-                if(stageIds.contains(task.getId())) {
-                    stageIdToExecTaskMap.put(task.getId(), task);
-                }
+        List<String> nonMapRedStages = Lists.newLinkedList();
+        for(String stageId : stageIdToTaskMap.keySet()) {
+            Task<? extends Serializable> task = stageIdToTaskMap.get(stageId);
+            if(task.getType() != StageType.MAPRED) {
+                nonMapRedStages.add(stageId);
             }
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
 
-        return stageIdToExecTaskMap;
+        for(String nonMapRedStage : nonMapRedStages) {
+            stageIdToTaskMap.remove(nonMapRedStage);
+        }
+
+        return stageIdToTaskMap;
     }
 
-    protected List<Task<? extends Serializable>> getAllTasks(Collection<Task<? extends Serializable>> thisLevelTasks, List<Task<? extends Serializable>> allTasks) {
-        if(allTasks == null) {
-            allTasks = Lists.newArrayList();
+    protected Map<String, Task<? extends Serializable>> getFullTaskMap(Collection<Task<? extends Serializable>> thisLevelTasks, Map<String, Task<? extends Serializable>> stageIdToTaskMap) {
+        if(stageIdToTaskMap == null) {
+            stageIdToTaskMap = Maps.newHashMap();
         }
 
         for(Task<? extends Serializable> task : thisLevelTasks) {
-            allTasks.add(task);
+            if(!stageIdToTaskMap.containsKey(task.getId())) {
+                stageIdToTaskMap.put(task.getId(), task);
 
-            if(task.getChildTasks() != null) {
-                getAllTasks(task.getChildTasks(), allTasks);
+                if(task.getChildTasks() != null) {
+                    getFullTaskMap(task.getChildTasks(), stageIdToTaskMap);
+                }
+
+                if (task.getDependentTasks() != null) {
+                    getFullTaskMap(task.getDependentTasks(), stageIdToTaskMap);
+                }
             }
         }
 
-        return allTasks;
+        return stageIdToTaskMap;
     }
 
-    protected List<Operator<? extends Serializable>> getAllOperators(Task<? extends Serializable> task) {
-        List<Operator<? extends Serializable>> topOps = new ArrayList<Operator<? extends Serializable>>(task.getTopOperators());
+    protected List<Operator<? extends OperatorDesc>> getAllOperators(Task<? extends Serializable> task) {
+        if(task == null) {
+            return Lists.newArrayList();
+        }
+
+        List<Operator<? extends OperatorDesc>> topOps = new ArrayList<Operator<? extends OperatorDesc>>(task.getTopOperators());
         //The reducer task is not accessible through the 'getTopOperators()' tree, add it
         if(task.getReducer() != null) {
             topOps.add(task.getReducer());
@@ -368,12 +290,12 @@ public class BasicH2LClient implements H2LClient, ClientStatsPublisher {
         return getAllOperators(topOps, null);
     }
 
-    protected List<Operator<? extends Serializable>> getAllOperators(Collection<Operator<? extends Serializable>> thisLevelOps, List<Operator<? extends Serializable>> allOps) {
+    protected List<Operator<? extends OperatorDesc>> getAllOperators(Collection<Operator<? extends OperatorDesc>> thisLevelOps, List<Operator<? extends OperatorDesc>> allOps) {
         if(allOps == null) {
             allOps = Lists.newArrayList();
         }
 
-        for(Operator<? extends Serializable> op : thisLevelOps) {
+        for(Operator<? extends OperatorDesc> op : thisLevelOps) {
             allOps.add(op);
             if(op.getChildOperators() != null) {
                 getAllOperators(op.getChildOperators(), allOps);
@@ -383,48 +305,16 @@ public class BasicH2LClient implements H2LClient, ClientStatsPublisher {
         return allOps;
     }
 
-    protected P2jJobStatus buildRunningJobStatusMap(Stage s, String formattedJobName) {
-        P2jJobStatus js = new P2jJobStatus();
-
-        try {
-            for(org.apache.hadoop.hive.ql.plan.api.Task t : s.getTaskList()) {
-                float taskProgress = getTaskProgress(t);
-                if(t.getTaskType().equals(TaskType.MAP)) {
-                    js.setMapProgress(taskProgress);
-                } else {
-                    js.setReduceProgress(taskProgress);
-                }
-            }
-
-            js.setJobId(formattedJobName);
-            js.setJobName(formattedJobName);
-            js.setScope(formattedJobName);
-            js.setIsComplete(false);
-
-            return js;
-        } catch (Exception e) {
-            LOG.error("Error getting job info.", e);
-        }
-
-        return null;
-    }
-
-    /**
-     * Build a P2jJobStatus object for the map/reduce job with id jobId.
-     *
-     * @param jobId the id of the map/reduce job
-     * @return the newly created P2jJobStatus
-     */
-    @SuppressWarnings("deprecation")
-    protected P2jJobStatus buildCompletedJobStatusMap(String jobId, String formattedJobName) {
-        P2jJobStatus js = new P2jJobStatus();
-
+    protected P2jJobStatus buildJobStatus(String jobId) {
         try {
             RunningJob rj = jobClient.getJob(jobId);
             if (rj == null) {
                 LOG.warn("Couldn't find job status for jobId=" + jobId);
                 return null;
             }
+
+            String formattedJobName = formatStageId(jobIdToStageIdMap.get(jobId));
+            P2jJobStatus js = new P2jJobStatus();
 
             JobID jobID = rj.getID();
             Counters counters = rj.getCounters();
@@ -445,7 +335,9 @@ public class BasicH2LClient implements H2LClient, ClientStatsPublisher {
             js.setScope(formattedJobName);
             js.setTrackingUrl(rj.getTrackingURL());
             js.setIsComplete(rj.isComplete());
-            js.setIsSuccessful(rj.isSuccessful());
+            if(rj.isComplete()) {
+                js.setIsSuccessful(rj.isSuccessful());
+            }
             js.setMapProgress(rj.mapProgress());
             js.setReduceProgress(rj.reduceProgress());
             js.setTotalMappers(mapTaskReport.length);
@@ -458,14 +350,29 @@ public class BasicH2LClient implements H2LClient, ClientStatsPublisher {
         return null;
     }
 
-    private float getTaskProgress(org.apache.hadoop.hive.ql.plan.api.Task t) {
-        float completedOps = 0.0f;
-        for(org.apache.hadoop.hive.ql.plan.api.Operator op : t.getOperatorList()) {
-            if(op.isDone()) {
-                completedOps += 1.0f;
-            }
+    protected String getStageIdFromJobId(String jobId) {
+        RunningJob rj = null;
+        try {
+            rj = jobClient.getJob(jobId);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        if (rj == null) {
+            LOG.warn("Couldn't find job status for jobId=" + jobId);
+            return null;
         }
 
-        return completedOps / (t.getOperatorListSize());
+        Matcher matcher = STAGEID_PATTERN.matcher(rj.getJobName());
+        if (matcher.find()) {
+            String stageId = matcher.group(1);
+            return stageId;
+        } else {
+            return null;
+        }
+    }
+
+    protected String formatStageId(String stageId) {
+        return "scope-" + stageId.replaceAll("-", "");
     }
 }

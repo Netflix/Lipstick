@@ -7,8 +7,10 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.exec.ColumnInfo;
 import org.apache.hadoop.hive.ql.exec.ExecDriver;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
+import org.apache.hadoop.hive.ql.exec.RowSchema;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.lazybinary.LazyBinaryStruct;
 import org.apache.hadoop.hive.service.HiveServer.HiveServerHandler;
@@ -47,7 +49,10 @@ public class HiveOutputSampler {
                 JobConf jc = new JobConf(ExecDriver.class);
                 jc.set("mapred.input.dir", outputPath.toString());
 
-                for(InputSplit is : inputFormat.getSplits(jc, 1)) {
+                InputSplit[] inputSplits = inputFormat.getSplits(jc, 1);
+
+                if(inputSplits != null && inputSplits.length > 0) {
+                    InputSplit is = inputSplits[0];
                     RecordReader rr = inputFormat.getRecordReader(is, jc, new MyReporter());
                     Writable key = new BytesWritable();
                     Writable value = new BytesWritable();
@@ -63,7 +68,8 @@ public class HiveOutputSampler {
                                 if(row.length() > 0) {
                                     row.append(OutputSampler.DELIMITER);
                                 }
-                                row.append(fieldVal.toString());
+                                String strFieldVal = (fieldVal == null) ? "NULL" : fieldVal.toString();
+                                row.append(strFieldVal);
                             }
                             row.append('\n');
                         }
@@ -76,14 +82,29 @@ public class HiveOutputSampler {
 
                         rowCount++;
                     }
-                    outputList.add(new SampleOutput(fsop.getSchema().toString(), output.toString()));
+                    outputList.add(new SampleOutput(buildSchemaString(fsop.getSchema()), output.toString()));
                 }
             }
         } catch(Exception e) {
-            LOG.info("Caught exception getting Sample Output from [" + outputPath + "]");
+            LOG.info("Caught exception getting Sample Output from [" + outputPath + "]", e);
         }
 
         return outputList;
+    }
+
+    private static String buildSchemaString(RowSchema rowSchema) {
+        //{region: chararray,show_title_id1: long,show_title_id2: long,blended_mi: double}
+        StringBuilder schemaBuilder = new StringBuilder();
+        schemaBuilder.append('{');
+        for(ColumnInfo ci : rowSchema.getSignature()) {
+            if(schemaBuilder.length() > 1) {
+                schemaBuilder.append(',');
+            }
+            String name = (ci.getAlias() != null) ? ci.getAlias() : ci.getInternalName();
+            schemaBuilder.append(name + ": " + ci.getType().getTypeName());
+        }
+        schemaBuilder.append('}');
+        return schemaBuilder.toString();
     }
 
     private static class MyReporter implements Reporter {

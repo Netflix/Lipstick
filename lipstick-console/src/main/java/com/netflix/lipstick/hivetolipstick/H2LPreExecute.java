@@ -9,12 +9,8 @@ import org.apache.hadoop.hive.ql.hooks.HookContext;
  *
  */
 public class H2LPreExecute implements ExecuteWithHookContext {
-    protected static final String LIPSTICK_URL_PROP = "lipstick.server.url";
-
     @Override
     public void run(HookContext hookContext) throws Exception {
-        String serviceUrl = hookContext.getConf().getAllProperties().getProperty(LIPSTICK_URL_PROP);
-        BasicH2LClient client = BasicH2LClient.getInstance(serviceUrl);
-        client.preExecute(hookContext);
+        BasicH2LClient.getInstance().preExecute(hookContext);
     }
 }

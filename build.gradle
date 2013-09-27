@@ -143,6 +143,7 @@ project(':lipstick-console') {
          'jline:jline:0.9.94',
          'org.antlr:antlr:3.4',
          'org.antlr:antlr-runtime:3.4',
+         'org.apache.httpcomponents:httpcore:4.1'
         ]
 
         for (l in libs) {
@@ -170,23 +171,17 @@ project(':lipstick-console') {
             }
         }
 
-        compile('org.apache.hive:hive-common:0.9.0') {
-            exclude module: 'hsqldb'
+        compile('org.apache.hive:hive-common:0.11.0') {
             exclude module: 'jdo2-api'
             exclude module: 'asm'
-            exclude module: 'hadoop-core'
         }
-        compile('org.apache.hive:hive-exec:0.9.0') {
-            exclude module: 'hsqldb'
+        compile('org.apache.hive:hive-exec:0.11.0') {
             exclude module: 'jdo2-api'
             exclude module: 'asm'
-            exclude module: 'hadoop-core'
         }
-        compile('org.apache.hive:hive-service:0.9.0') {
-            exclude module: 'hsqldb'
+        compile('org.apache.hive:hive-service:0.11.0') {
             exclude module: 'jdo2-api'
             exclude module: 'asm'
-            exclude module: 'hadoop-core'
         }
 
         if(project.hasProperty('withHadoop')) {
