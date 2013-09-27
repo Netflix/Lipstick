@@ -81,6 +81,7 @@ public class BasicP2LClient implements P2LClient {
     protected final Map<String, String> jobIdToScopeNameMap = Maps.newHashMap();
 
     protected final PigStatusClient psClient;
+    protected boolean invalidClient = false;
 
     /**
      * Instantiates a new BasicP2LClient using RestfulPigStatusClient with serviceUrl.
@@ -106,6 +107,7 @@ public class BasicP2LClient implements P2LClient {
         this.ps = ps;
     }
 
+    @Override
     public void setPigContext(PigContext context) {
         this.context = context;
     }
@@ -163,19 +165,28 @@ public class BasicP2LClient implements P2LClient {
                 }
                 plans.getStatus().setStartTime();
                 plans.getStatus().setStatusText(StatusText.running);
-                psClient.savePlan(plans);
-                
+                invalidClient = (psClient.savePlan(plans) == null);
 
             } catch (Exception e) {
                 LOG.error("Caught unexpected exception generating json plan.", e);
+                invalidClient = true;
             }
         } else {
             LOG.warn("Not saving plan, missing necessary objects to do so");
+            invalidClient = true;
+        }
+
+        if(invalidClient) {
+            LOG.error("Failed to properly create lipstick client and save plan.  Lipstick will be disabled.");
         }
     }
 
     @Override
     public void updateProgress(int progress) {
+        if(invalidClient) {
+            return;
+        }
+
         P2jPlanStatus planStatus = new P2jPlanStatus();
         planStatus.setProgress(progress);
 
@@ -189,6 +200,10 @@ public class BasicP2LClient implements P2LClient {
 
     @Override
     public void jobStarted(String jobId) {
+        if(invalidClient) {
+            return;
+        }
+
         PigStats.JobGraph jobGraph = PigStats.get().getJobGraph();
         LOG.debug("jobStartedNotification - jobId " + jobId + ", jobGraph:\n" + jobGraph);
 
@@ -206,6 +221,10 @@ public class BasicP2LClient implements P2LClient {
 
     @Override
     public void jobFinished(JobStats jobStats) {
+        if(invalidClient) {
+            return;
+        }
+
         // Remove jobId from runningSet b/c it's now complete
         String jobId = jobStats.getJobId();
         if (!runningJobIds.remove(jobId)) {
@@ -237,11 +256,19 @@ public class BasicP2LClient implements P2LClient {
 
     @Override
     public void jobFailed(JobStats jobStats) {
+        if(invalidClient) {
+            return;
+        }
+
         planFailed = true;
     }
 
     @Override
     public void planCompleted() {
+        if(invalidClient) {
+            return;
+        }
+
         if (planFailed) {
             planEndedWithStatusText(StatusText.failed);
         } else {
