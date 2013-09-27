@@ -70,6 +70,7 @@ public class BasicP2LClient implements P2LClient {
     private static final Log LOG = LogFactory.getLog(BasicP2LClient.class);
 
     protected static final String JOB_NAME_PROP = "jobName";
+    protected static final String ENABLE_SAMPLE_OUTPUT_PROP = "lipstick.enable.sampleoutput";
 
     protected boolean planFailed = false;
     protected String planId;
@@ -82,6 +83,7 @@ public class BasicP2LClient implements P2LClient {
 
     protected final PigStatusClient psClient;
     protected boolean invalidClient = false;
+    protected boolean enableSampleOutput = true;
 
     /**
      * Instantiates a new BasicP2LClient using RestfulPigStatusClient with serviceUrl.
@@ -163,6 +165,14 @@ public class BasicP2LClient implements P2LClient {
                 } else {
                     plans.setJobName("unknown");
                 }
+                if(props.containsKey(ENABLE_SAMPLE_OUTPUT_PROP)) {
+                    String strProp = props.getProperty(ENABLE_SAMPLE_OUTPUT_PROP).toLowerCase();
+                    if(strProp.equals("f") || strProp.equals("false")) {
+                        enableSampleOutput = false;
+                        LOG.warn("Sample Output has been disabled.");
+                    }
+                }
+
                 plans.getStatus().setStartTime();
                 plans.getStatus().setStatusText(StatusText.running);
                 invalidClient = (psClient.savePlan(plans) == null);
@@ -236,21 +246,23 @@ public class BasicP2LClient implements P2LClient {
         updatePlanStatusForJobId(planStatus, jobId);
         psClient.saveStatus(planId, planStatus);
 
-        // Get sample output for the job
-        try {
-            P2jSampleOutputList sampleOutputList = new P2jSampleOutputList();
-            OutputSampler os = new OutputSampler(jobStats);
-            // The 10 & 1024 params (maxRows and maxBytes)
-            // should be configurable via properties
-            for (SampleOutput schemaOutputPair : os.getSampleOutputs(10, 1024)) {
-                P2jSampleOutput sampleOutput = new P2jSampleOutput();
-                sampleOutput.setSchemaString(schemaOutputPair.getSchema());
-                sampleOutput.setSampleOutput(schemaOutputPair.getOutput());
-                sampleOutputList.add(sampleOutput);
+        if(enableSampleOutput) {
+            // Get sample output for the job
+            try {
+                P2jSampleOutputList sampleOutputList = new P2jSampleOutputList();
+                OutputSampler os = new OutputSampler(jobStats);
+                // The 10 & 1024 params (maxRows and maxBytes)
+                // should be configurable via properties
+                for (SampleOutput schemaOutputPair : os.getSampleOutputs(10, 1024)) {
+                    P2jSampleOutput sampleOutput = new P2jSampleOutput();
+                    sampleOutput.setSchemaString(schemaOutputPair.getSchema());
+                    sampleOutput.setSampleOutput(schemaOutputPair.getOutput());
+                    sampleOutputList.add(sampleOutput);
+                }
+                psClient.saveSampleOutput(planId, jobIdToScopeNameMap.get(jobStats.getJobId()), sampleOutputList);
+            } catch (Exception e) {
+                LOG.error("Unable to get sample output from job with id [" + jobStats.getJobId() + "]. ", e);
             }
-            psClient.saveSampleOutput(planId, jobIdToScopeNameMap.get(jobStats.getJobId()), sampleOutputList);
-        } catch (Exception e) {
-            LOG.error("Unable to get sample output from job with id [" + jobStats.getJobId() + "]. ", e);
         }
     }
 
