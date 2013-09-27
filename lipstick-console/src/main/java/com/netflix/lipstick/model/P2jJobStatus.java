@@ -43,6 +43,8 @@ public class P2jJobStatus {
     private int totalMappers;
     private int totalReducers;
     private long id;
+    private long startTime;
+    private long finishTime;
 
     /**
      * Initialize an empty P2jJobStatus object.
@@ -148,4 +150,21 @@ public class P2jJobStatus {
     public void setScope(String scope) {
         this.scope = scope;
     }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    public long getFinishTime() {
+        return finishTime;
+    }
+
+    public void setFinishTime(long finishTime) {
+        this.finishTime = finishTime;
+    }
+
 }

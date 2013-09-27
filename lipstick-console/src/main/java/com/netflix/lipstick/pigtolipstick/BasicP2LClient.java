@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.List;
+import java.util.Arrays;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
@@ -46,6 +48,7 @@ import org.apache.pig.tools.pigstats.ScriptState;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 import com.netflix.lipstick.MRPlanCalculator;
 import com.netflix.lipstick.P2jPlanGenerator;
 import com.netflix.lipstick.model.P2jCounters;
@@ -243,7 +246,7 @@ public class BasicP2LClient implements P2LClient {
 
         // Update the status of this job
         P2jPlanStatus planStatus = new P2jPlanStatus();
-        updatePlanStatusForJobId(planStatus, jobId);
+        updatePlanStatusForCompletedJobId(planStatus, jobId);
         psClient.saveStatus(planId, planStatus);
 
         if(enableSampleOutput) {
@@ -313,6 +316,49 @@ public class BasicP2LClient implements P2LClient {
             planStatus.updateWith(status);
         }
     }
+
+    protected void updatePlanStatusForCompletedJobId(P2jPlanStatus planStatus, String jobId) {
+        LOG.info("Updating plan status for completed job " + jobId);
+        updatePlanStatusForJobId(planStatus, jobId);        
+        JobClient jobClient = PigStats.get().getJobClient();
+        JobID jobID = JobID.forName(jobId);
+        long startTime = Long.MAX_VALUE;
+        long finishTime = Long.MIN_VALUE;
+        /* The JobClient doesn't expose a way to get the Start and Finish time
+           of the over all job[1] sadly, so we're pulling out the min task start
+           time and max task finish time and using these to approximate.
+
+           [1] - Which is really dumb.  The data obviously exists, it gets rendered
+           in the job tracker via the JobInProgress but sadly this is internal
+           to the remote job tracker so we don't have access to this 
+           information. */
+        try {
+            List<TaskReport> reports = Lists.newArrayList();
+            reports.addAll(Arrays.asList(jobClient.getMapTaskReports(jobID)));
+            reports.addAll(Arrays.asList(jobClient.getReduceTaskReports(jobID)));
+            reports.addAll(Arrays.asList(jobClient.getCleanupTaskReports(jobID)));
+            reports.addAll(Arrays.asList(jobClient.getSetupTaskReports(jobID)));
+            for(TaskReport rpt : reports) {
+                /* rpt.getStartTime() sometimes returns zero meaning it does
+                   not know what time it started so we need to prevent using 
+                   this or we'll lose the actual lowest start time */
+                long taskStartTime = rpt.getStartTime();
+                if (0 != taskStartTime) {
+                    startTime = Math.min(startTime, taskStartTime);
+                }                   
+                finishTime = Math.max(finishTime, rpt.getFinishTime());
+            }
+            P2jJobStatus jobStatus = planStatus.getJob(jobId);
+            jobStatus.setStartTime(startTime);
+            jobStatus.setFinishTime(finishTime);
+            LOG.info("Determined start and finish times for job " + jobId);
+        } catch (IOException e) {
+            LOG.error("Error getting job info.", e);
+        }
+
+    }
+        
+
 
     /**
      * Build a P2jJobStatus object for the map/reduce job with id jobId.
