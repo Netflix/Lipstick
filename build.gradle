@@ -119,7 +119,7 @@ project(':lipstick-console') {
         includeInJar
     }
 
-    publishing {    
+    publishing {
         publications {
             mavenJava(MavenPublication) {
                 from components.java
@@ -141,6 +141,7 @@ project(':lipstick-console') {
          'jline:jline:0.9.94',
          'org.antlr:antlr:3.4',
          'org.antlr:antlr-runtime:3.4',
+         'org.apache.httpcomponents:httpcore:4.1'
         ]
 
         for (l in libs) {
@@ -166,6 +167,19 @@ project(':lipstick-console') {
                 exclude module: 'jsp-api-2.1'
                 exclude module: 'servlet-api-2.5'
             }
+        }
+
+        compile('org.apache.hive:hive-common:0.11.0') {
+            exclude module: 'jdo2-api'
+            exclude module: 'asm'
+        }
+        compile('org.apache.hive:hive-exec:0.11.0') {
+            exclude module: 'jdo2-api'
+            exclude module: 'asm'
+        }
+        compile('org.apache.hive:hive-service:0.11.0') {
+            exclude module: 'jdo2-api'
+            exclude module: 'asm'
         }
 
         if(project.hasProperty('withHadoop')) {
@@ -216,8 +230,8 @@ project(':lipstick-console') {
 
         expand(version: version, ts: ts, commitid: commitid)
         into ('./src/main/resources')
-        outputs.upToDateWhen { false } 
+        outputs.upToDateWhen { false }
     }
 
     task('install', dependsOn: 'publishToMavenLocal')
-}     
+}
