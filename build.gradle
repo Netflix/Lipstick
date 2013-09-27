@@ -1,6 +1,8 @@
 import nl.javadude.gradle.plugins.license.License
 import java.text.SimpleDateFormat
 
+ext.githubProjectName = "Lipstick"
+
 buildscript {
     repositories {
         mavenCentral()
@@ -12,13 +14,13 @@ buildscript {
         }
         classpath 'com.google.guava:guava:12.0'
     }
+    apply from: file('gradle/buildscript.gradle'), to: buildscript
 }
 
 allprojects {
     repositories {
         mavenCentral()
     }
-    version = '0.3'
     group = 'com.netflix.lipstick'
 }
 
@@ -111,20 +113,13 @@ project(':lipstick-server') {
 }
 
 project(':lipstick-console') {
-    apply plugin: 'java'
     apply plugin: 'eclipse'
-    apply plugin: 'maven-publish'
+    apply from: file('../gradle/convention.gradle')
+    apply from: file('../gradle/maven.gradle')
+    apply from: file('../gradle/release.gradle')
 
     configurations {
         includeInJar
-    }
-
-    publishing {    
-        publications {
-            mavenJava(MavenPublication) {
-                from components.java
-            }
-        }
     }
 
     dependencies {
@@ -218,6 +213,4 @@ project(':lipstick-console') {
         into ('./src/main/resources')
         outputs.upToDateWhen { false } 
     }
-
-    task('install', dependsOn: 'publishToMavenLocal')
 }     
