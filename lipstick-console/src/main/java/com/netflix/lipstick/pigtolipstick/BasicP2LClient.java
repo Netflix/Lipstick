@@ -16,12 +16,12 @@
 package com.netflix.lipstick.pigtolipstick;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-import java.util.List;
-import java.util.Arrays;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
@@ -36,19 +36,20 @@ import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.pig.impl.PigContext;
+import org.apache.pig.ExecType;
 import org.apache.pig.LipstickPigServer;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
+import org.apache.pig.impl.PigContext;
 import org.apache.pig.newplan.Operator;
 import org.apache.pig.tools.pigstats.JobStats;
 import org.apache.pig.tools.pigstats.PigStats;
 import org.apache.pig.tools.pigstats.ScriptState;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.collect.Lists;
 import com.netflix.lipstick.MRPlanCalculator;
 import com.netflix.lipstick.P2jPlanGenerator;
 import com.netflix.lipstick.model.P2jCounters;
@@ -82,7 +83,7 @@ public class BasicP2LClient implements P2LClient {
     protected LipstickPigServer ps;
     protected PigContext context;
     protected final Set<String> runningJobIds = Sets.newHashSet();
-    protected final Map<String, String> jobIdToScopeNameMap = Maps.newHashMap();
+    protected final Map<String, P2jJobStatus> jobIdToJobStatusMap = Maps.newHashMap();
 
     protected final PigStatusClient psClient;
     protected boolean invalidClient = false;
@@ -227,10 +228,17 @@ public class BasicP2LClient implements P2LClient {
         for (JobStats jobStats : jobGraph) {
             if (jobId.equals(jobStats.getJobId())) {
                 LOG.info("jobStartedNotification - scope " + jobStats.getName() + " is jobId " + jobId);
-                jobIdToScopeNameMap.put(jobId, jobStats.getName());
+                P2jJobStatus jobStatus = new P2jJobStatus();
+                jobStatus.setJobId(jobId);
+                jobStatus.setStartTime(System.currentTimeMillis());
+                jobStatus.setScope(jobStats.getName());
+                jobIdToJobStatusMap.put(jobId, jobStatus);
                 runningJobIds.add(jobId);
             }
         }
+        P2jPlanStatus planStatus = new P2jPlanStatus();
+        updatePlanStatusForJobId(planStatus, jobId);
+        psClient.saveStatus(planId, planStatus);
     }
 
     @Override
@@ -247,6 +255,11 @@ public class BasicP2LClient implements P2LClient {
 
         // Update the status of this job
         P2jPlanStatus planStatus = new P2jPlanStatus();
+        jobIdToJobStatusMap.get(jobId).setFinishTime(System.currentTimeMillis());
+        if (context.getExecType() == ExecType.LOCAL) {
+            jobIdToJobStatusMap.get(jobId).setMapProgress(1);
+            jobIdToJobStatusMap.get(jobId).setReduceProgress(1);
+        }
         updatePlanStatusForCompletedJobId(planStatus, jobId);
         psClient.saveStatus(planId, planStatus);
 
@@ -263,7 +276,9 @@ public class BasicP2LClient implements P2LClient {
                     sampleOutput.setSampleOutput(schemaOutputPair.getOutput());
                     sampleOutputList.add(sampleOutput);
                 }
-                psClient.saveSampleOutput(planId, jobIdToScopeNameMap.get(jobStats.getJobId()), sampleOutputList);
+                psClient.saveSampleOutput(planId,
+                                          jobIdToJobStatusMap.get(jobStats.getJobId()).getScope(),
+                                          sampleOutputList);
             } catch (Exception e) {
                 LOG.error("Unable to get sample output from job with id [" + jobStats.getJobId() + "]. ", e);
             }
@@ -313,7 +328,6 @@ public class BasicP2LClient implements P2LClient {
     protected void updatePlanStatusForJobId(P2jPlanStatus planStatus, String jobId) {
         P2jJobStatus status = buildJobStatusMap(jobId);
         if (status != null) {
-            status.setScope(jobIdToScopeNameMap.get(jobId));
             planStatus.updateWith(status);
         }
     }
@@ -349,17 +363,19 @@ public class BasicP2LClient implements P2LClient {
                 }
                 finishTime = Math.max(finishTime, rpt.getFinishTime());
             }
-            P2jJobStatus jobStatus = planStatus.getJob(jobId);
-            jobStatus.setStartTime(startTime);
-            jobStatus.setFinishTime(finishTime);
+            P2jJobStatus jobStatus = jobIdToJobStatusMap.get(jobId);
+            if (startTime < Long.MAX_VALUE) {
+                jobStatus.setStartTime(startTime);
+            }
+            if (finishTime > Long.MIN_VALUE) {
+                jobStatus.setFinishTime(finishTime);
+            }
             LOG.info("Determined start and finish times for job " + jobId);
         } catch (IOException e) {
             LOG.error("Error getting job info.", e);
         }
 
     }
-
-
 
     /**
      * Build a P2jJobStatus object for the map/reduce job with id jobId.
@@ -370,13 +386,13 @@ public class BasicP2LClient implements P2LClient {
     @SuppressWarnings("deprecation")
     protected P2jJobStatus buildJobStatusMap(String jobId) {
         JobClient jobClient = PigStats.get().getJobClient();
-        P2jJobStatus js = new P2jJobStatus();
+        P2jJobStatus js = jobIdToJobStatusMap.get(jobId);
 
         try {
             RunningJob rj = jobClient.getJob(jobId);
             if (rj == null) {
                 LOG.warn("Couldn't find job status for jobId=" + jobId);
-                return null;
+                return js;
             }
 
             JobID jobID = rj.getID();
@@ -393,7 +409,6 @@ public class BasicP2LClient implements P2LClient {
             js.setCounters(cMap);
             TaskReport[] mapTaskReport = jobClient.getMapTaskReports(jobID);
             TaskReport[] reduceTaskReport = jobClient.getReduceTaskReports(jobID);
-            js.setJobId(jobId.toString());
             js.setJobName(rj.getJobName());
             js.setTrackingUrl(rj.getTrackingURL());
             js.setIsComplete(rj.isComplete());
