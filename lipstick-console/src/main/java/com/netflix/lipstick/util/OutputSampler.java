@@ -15,7 +15,9 @@
  */
 package com.netflix.lipstick.util;
 
+import java.lang.Class;
 import java.lang.reflect.Field;
+import java.lang.IllegalAccessException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -110,6 +112,32 @@ public class OutputSampler {
         return sampleOutputs;
     }
 
+    /* For a given object retrieve the value of a named field, regardless 
+       of what class in the object's inheritance hierarchy the field was
+       declared upon, and raises NoSuchFieldException if the field does
+       not exist on any class in the hierarchy. */
+    public Object getInheritedFieldValue(Object obj, String fieldName) throws IllegalAccessException, NoSuchFieldException {
+        return getInheritedFieldValue(obj, obj.getClass(), fieldName);
+    }
+
+    protected Object getInheritedFieldValue(Object obj, Class cls, String fieldName) throws IllegalAccessException, NoSuchFieldException {
+        try {
+            Field f = cls.getDeclaredField(fieldName);
+            f.setAccessible(true);
+            return f.get(obj);
+        } catch (NoSuchFieldException e) {
+            Class souper = cls.getSuperclass();
+            if (souper != null) {
+                return getInheritedFieldValue(obj, souper, fieldName);
+            } else {
+                /* getSuperclass() returns null if we've gotten all the
+                   way up to Object. At this point we've checked every class
+                   in the heirarchy so the field must not exist. */
+                throw new NoSuchFieldException(fieldName);
+            }
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private List<POStore> getStoreInfo(JobStats jobStats) {
         List<POStore> storeInfo = new LinkedList<POStore>();
@@ -120,23 +148,27 @@ public class OutputSampler {
         List<POStore> mapStores = null;
         List<POStore> reduceStores = null;
         try {
-            Field f = jobStats.getClass().getDeclaredField("mapStores");
-            f.setAccessible(true);
-            mapStores = (LinkedList<POStore>) f.get(jobStats);
-
-            f = jobStats.getClass().getDeclaredField("reduceStores");
-            f.setAccessible(true);
-            reduceStores = (LinkedList<POStore>) f.get(jobStats);
+            mapStores = (LinkedList<POStore>) getInheritedFieldValue(jobStats, "mapStores");
         } catch (Exception e) {
-            LOG.warn("Failed to get store information for jobId [" + jobStats.getJobId() + "].", e);
+            LOG.warn("Failed to get map store information for jobId [" + jobStats.getJobId() + "].", e);
+        }
+
+        try {
+            reduceStores = (LinkedList<POStore>) getInheritedFieldValue(jobStats, "reduceStores");
+        } catch (Exception e) {
+            LOG.warn("Failed to get reduce store information for jobId [" + jobStats.getJobId() + "].", e);
         }
 
         if (mapStores != null) {
             storeInfo.addAll(mapStores);
+        } else {
+            LOG.info("No map store information for jobId [" + jobStats.getJobId() + "].");
         }
 
         if (reduceStores != null) {
             storeInfo.addAll(reduceStores);
+        } else {
+            LOG.info("No reduce store information for jobId [" + jobStats.getJobId() + "].");
         }
 
         return storeInfo;
