@@ -115,7 +115,13 @@ public class LipstickPPNL implements PigProgressNotificationListener {
             initClients();
 
             if (clientIsActive()) {
-                String uuid = UUID.randomUUID().toString();
+                Properties props = context.getProperties();
+                String uuid = (String) props.get(LIPSTICK_UUID_PROP);
+                if ((uuid == null) || uuid.isEmpty()) {
+                    uuid = UUID.randomUUID().toString();
+                    props.put(LIPSTICK_UUID_PROP, uuid);
+                }
+                LOG.info("UUID: " + uuid);
                 LOG.info(clients);
                 for (P2LClient client : clients) {
                     client.setPlanGenerators(unoptimizedPlanGenerator, optimizedPlanGenerator);
@@ -123,8 +129,7 @@ public class LipstickPPNL implements PigProgressNotificationListener {
                     client.setPigContext(context);
                     client.setPlanId(uuid);
                 }
-                Properties props = context.getProperties();
-                props.put(LIPSTICK_UUID_PROP, uuid);
+
             }
         } catch (Exception e) {
             LOG.error("Caught unexpected exception", e);

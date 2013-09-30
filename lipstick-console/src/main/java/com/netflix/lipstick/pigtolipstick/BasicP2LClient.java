@@ -168,6 +168,7 @@ public class BasicP2LClient implements P2LClient {
                 } else {
                     plans.setJobName("unknown");
                 }
+
                 if(props.containsKey(ENABLE_SAMPLE_OUTPUT_PROP)) {
                     String strProp = props.getProperty(ENABLE_SAMPLE_OUTPUT_PROP).toLowerCase();
                     if(strProp.equals("f") || strProp.equals("false")) {
@@ -319,7 +320,7 @@ public class BasicP2LClient implements P2LClient {
 
     protected void updatePlanStatusForCompletedJobId(P2jPlanStatus planStatus, String jobId) {
         LOG.info("Updating plan status for completed job " + jobId);
-        updatePlanStatusForJobId(planStatus, jobId);        
+        updatePlanStatusForJobId(planStatus, jobId);
         JobClient jobClient = PigStats.get().getJobClient();
         JobID jobID = JobID.forName(jobId);
         long startTime = Long.MAX_VALUE;
@@ -330,7 +331,7 @@ public class BasicP2LClient implements P2LClient {
 
            [1] - Which is really dumb.  The data obviously exists, it gets rendered
            in the job tracker via the JobInProgress but sadly this is internal
-           to the remote job tracker so we don't have access to this 
+           to the remote job tracker so we don't have access to this
            information. */
         try {
             List<TaskReport> reports = Lists.newArrayList();
@@ -340,12 +341,12 @@ public class BasicP2LClient implements P2LClient {
             reports.addAll(Arrays.asList(jobClient.getSetupTaskReports(jobID)));
             for(TaskReport rpt : reports) {
                 /* rpt.getStartTime() sometimes returns zero meaning it does
-                   not know what time it started so we need to prevent using 
+                   not know what time it started so we need to prevent using
                    this or we'll lose the actual lowest start time */
                 long taskStartTime = rpt.getStartTime();
                 if (0 != taskStartTime) {
                     startTime = Math.min(startTime, taskStartTime);
-                }                   
+                }
                 finishTime = Math.max(finishTime, rpt.getFinishTime());
             }
             P2jJobStatus jobStatus = planStatus.getJob(jobId);
@@ -357,7 +358,7 @@ public class BasicP2LClient implements P2LClient {
         }
 
     }
-        
+
 
 
     /**
