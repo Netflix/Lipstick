@@ -161,6 +161,7 @@ mrJobsTmpl: ' \
             <td><strong>Jobs</strong></td> \
             <td><strong>Map</strong></td> \
             <td><strong>Reduce</strong></td> \
+            <td><strong>Duration</strong></td> \
         </tr> \
     </thead> \
     <tbody> \
@@ -182,6 +183,12 @@ mrJobsTmpl: ' \
                 <td><%= Math.floor(mrJobInfo.runData.reduceProgress * 100) %>%</td> \
             <% } else { %> \
                 <td></td> \
+            <% } %> \
+            <% if ((mrJobInfo.runData.startTime) && (mrJobInfo.runData.finishTime)) { %> \
+              <% var duration = moment().startOf("day").add("ms", (mrJobInfo.runData.finishTime - mrJobInfo.runData.startTime)) %> \
+              <td><%= duration.format("HH:mm:ss") %></td> \
+            <% } else { %> \
+              <td>--</td> \
             <% } %> \
         </tr> \
     <% }); %> \

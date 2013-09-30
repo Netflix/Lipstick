@@ -3,7 +3,6 @@ import java.text.SimpleDateFormat
 
 buildscript {
     repositories {
-        mavenLocal()
         mavenCentral()
     }
 
@@ -17,7 +16,6 @@ buildscript {
 
 allprojects {
     repositories {
-        mavenLocal()
         mavenCentral()
     }
     version = '0.3'

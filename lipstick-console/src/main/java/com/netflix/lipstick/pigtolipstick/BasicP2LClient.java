@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.List;
+import java.util.Arrays;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
@@ -46,6 +48,7 @@ import org.apache.pig.tools.pigstats.ScriptState;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 import com.netflix.lipstick.MRPlanCalculator;
 import com.netflix.lipstick.P2jPlanGenerator;
 import com.netflix.lipstick.model.P2jCounters;
@@ -70,7 +73,7 @@ public class BasicP2LClient implements P2LClient {
     private static final Log LOG = LogFactory.getLog(BasicP2LClient.class);
 
     protected static final String JOB_NAME_PROP = "jobName";
-    protected static final String GENIE_JOB_ID = "genie.job.id";
+    protected static final String ENABLE_SAMPLE_OUTPUT_PROP = "lipstick.enable.sampleoutput";
 
     protected boolean planFailed = false;
     protected String planId;
@@ -82,6 +85,8 @@ public class BasicP2LClient implements P2LClient {
     protected final Map<String, String> jobIdToScopeNameMap = Maps.newHashMap();
 
     protected final PigStatusClient psClient;
+    protected boolean invalidClient = false;
+    protected boolean enableSampleOutput = true;
 
     /**
      * Instantiates a new BasicP2LClient using RestfulPigStatusClient with serviceUrl.
@@ -107,6 +112,7 @@ public class BasicP2LClient implements P2LClient {
         this.ps = ps;
     }
 
+    @Override
     public void setPigContext(PigContext context) {
         this.context = context;
     }
@@ -162,26 +168,39 @@ public class BasicP2LClient implements P2LClient {
                 } else {
                     plans.setJobName("unknown");
                 }
-                if (props.containsKey(GENIE_JOB_ID)) {
-                    // point of Genie integration
-                    // if genie provides a UUID via property, use it
-                    plans.setUuid(props.getProperty(GENIE_JOB_ID));
+
+                if(props.containsKey(ENABLE_SAMPLE_OUTPUT_PROP)) {
+                    String strProp = props.getProperty(ENABLE_SAMPLE_OUTPUT_PROP).toLowerCase();
+                    if(strProp.equals("f") || strProp.equals("false")) {
+                        enableSampleOutput = false;
+                        LOG.warn("Sample Output has been disabled.");
+                    }
                 }
+
                 plans.getStatus().setStartTime();
                 plans.getStatus().setStatusText(StatusText.running);
-                psClient.savePlan(plans);
-
+                invalidClient = (psClient.savePlan(plans) == null);
 
             } catch (Exception e) {
                 LOG.error("Caught unexpected exception generating json plan.", e);
+                invalidClient = true;
             }
         } else {
             LOG.warn("Not saving plan, missing necessary objects to do so");
+            invalidClient = true;
+        }
+
+        if(invalidClient) {
+            LOG.error("Failed to properly create lipstick client and save plan.  Lipstick will be disabled.");
         }
     }
 
     @Override
     public void updateProgress(int progress) {
+        if(invalidClient) {
+            return;
+        }
+
         P2jPlanStatus planStatus = new P2jPlanStatus();
         planStatus.setProgress(progress);
 
@@ -195,6 +214,10 @@ public class BasicP2LClient implements P2LClient {
 
     @Override
     public void jobStarted(String jobId) {
+        if(invalidClient) {
+            return;
+        }
+
         PigStats.JobGraph jobGraph = PigStats.get().getJobGraph();
         LOG.debug("jobStartedNotification - jobId " + jobId + ", jobGraph:\n" + jobGraph);
 
@@ -212,6 +235,10 @@ public class BasicP2LClient implements P2LClient {
 
     @Override
     public void jobFinished(JobStats jobStats) {
+        if(invalidClient) {
+            return;
+        }
+
         // Remove jobId from runningSet b/c it's now complete
         String jobId = jobStats.getJobId();
         if (!runningJobIds.remove(jobId)) {
@@ -220,34 +247,44 @@ public class BasicP2LClient implements P2LClient {
 
         // Update the status of this job
         P2jPlanStatus planStatus = new P2jPlanStatus();
-        updatePlanStatusForJobId(planStatus, jobId);
+        updatePlanStatusForCompletedJobId(planStatus, jobId);
         psClient.saveStatus(planId, planStatus);
 
-        // Get sample output for the job
-        try {
-            P2jSampleOutputList sampleOutputList = new P2jSampleOutputList();
-            OutputSampler os = new OutputSampler(jobStats);
-            // The 10 & 1024 params (maxRows and maxBytes)
-            // should be configurable via properties
-            for (SampleOutput schemaOutputPair : os.getSampleOutputs(10, 1024)) {
-                P2jSampleOutput sampleOutput = new P2jSampleOutput();
-                sampleOutput.setSchemaString(schemaOutputPair.getSchema());
-                sampleOutput.setSampleOutput(schemaOutputPair.getOutput());
-                sampleOutputList.add(sampleOutput);
+        if(enableSampleOutput) {
+            // Get sample output for the job
+            try {
+                P2jSampleOutputList sampleOutputList = new P2jSampleOutputList();
+                OutputSampler os = new OutputSampler(jobStats);
+                // The 10 & 1024 params (maxRows and maxBytes)
+                // should be configurable via properties
+                for (SampleOutput schemaOutputPair : os.getSampleOutputs(10, 1024)) {
+                    P2jSampleOutput sampleOutput = new P2jSampleOutput();
+                    sampleOutput.setSchemaString(schemaOutputPair.getSchema());
+                    sampleOutput.setSampleOutput(schemaOutputPair.getOutput());
+                    sampleOutputList.add(sampleOutput);
+                }
+                psClient.saveSampleOutput(planId, jobIdToScopeNameMap.get(jobStats.getJobId()), sampleOutputList);
+            } catch (Exception e) {
+                LOG.error("Unable to get sample output from job with id [" + jobStats.getJobId() + "]. ", e);
             }
-            psClient.saveSampleOutput(planId, jobIdToScopeNameMap.get(jobStats.getJobId()), sampleOutputList);
-        } catch (Exception e) {
-            LOG.error("Unable to get sample output from job with id [" + jobStats.getJobId() + "]. ", e);
         }
     }
 
     @Override
     public void jobFailed(JobStats jobStats) {
+        if(invalidClient) {
+            return;
+        }
+
         planFailed = true;
     }
 
     @Override
     public void planCompleted() {
+        if(invalidClient) {
+            return;
+        }
+
         if (planFailed) {
             planEndedWithStatusText(StatusText.failed);
         } else {
@@ -280,6 +317,49 @@ public class BasicP2LClient implements P2LClient {
             planStatus.updateWith(status);
         }
     }
+
+    protected void updatePlanStatusForCompletedJobId(P2jPlanStatus planStatus, String jobId) {
+        LOG.info("Updating plan status for completed job " + jobId);
+        updatePlanStatusForJobId(planStatus, jobId);
+        JobClient jobClient = PigStats.get().getJobClient();
+        JobID jobID = JobID.forName(jobId);
+        long startTime = Long.MAX_VALUE;
+        long finishTime = Long.MIN_VALUE;
+        /* The JobClient doesn't expose a way to get the Start and Finish time
+           of the over all job[1] sadly, so we're pulling out the min task start
+           time and max task finish time and using these to approximate.
+
+           [1] - Which is really dumb.  The data obviously exists, it gets rendered
+           in the job tracker via the JobInProgress but sadly this is internal
+           to the remote job tracker so we don't have access to this
+           information. */
+        try {
+            List<TaskReport> reports = Lists.newArrayList();
+            reports.addAll(Arrays.asList(jobClient.getMapTaskReports(jobID)));
+            reports.addAll(Arrays.asList(jobClient.getReduceTaskReports(jobID)));
+            reports.addAll(Arrays.asList(jobClient.getCleanupTaskReports(jobID)));
+            reports.addAll(Arrays.asList(jobClient.getSetupTaskReports(jobID)));
+            for(TaskReport rpt : reports) {
+                /* rpt.getStartTime() sometimes returns zero meaning it does
+                   not know what time it started so we need to prevent using
+                   this or we'll lose the actual lowest start time */
+                long taskStartTime = rpt.getStartTime();
+                if (0 != taskStartTime) {
+                    startTime = Math.min(startTime, taskStartTime);
+                }
+                finishTime = Math.max(finishTime, rpt.getFinishTime());
+            }
+            P2jJobStatus jobStatus = planStatus.getJob(jobId);
+            jobStatus.setStartTime(startTime);
+            jobStatus.setFinishTime(finishTime);
+            LOG.info("Determined start and finish times for job " + jobId);
+        } catch (IOException e) {
+            LOG.error("Error getting job info.", e);
+        }
+
+    }
+
+
 
     /**
      * Build a P2jJobStatus object for the map/reduce job with id jobId.
