@@ -24,6 +24,8 @@ allprojects {
     group = 'com.netflix.lipstick'
 }
 
+apply from: file('gradle/release.gradle')
+
 task('show-version') {
     doLast {
         println version
@@ -116,7 +118,6 @@ project(':lipstick-console') {
     apply plugin: 'eclipse'
     apply from: file('../gradle/convention.gradle')
     apply from: file('../gradle/maven.gradle')
-    apply from: file('../gradle/release.gradle')
 
     configurations {
         includeInJar
