@@ -46,7 +46,9 @@ import com.netflix.lipstick.pigtolipstick.P2LClient;
 public class LipstickPPNL implements PigProgressNotificationListener {
     private static final Log LOG = LogFactory.getLog(LipstickPPNL.class);
 
-    protected static final String LIPSTICK_UUID_PROP = "lipstick.uuid";
+    protected static final String LIPSTICK_UUID_PROP_NAME = "lipstick.uuid.prop.name";
+    protected static final String LIPSTICK_UUID_PROP_DEFAULT = "lipstick.uuid";
+
     protected static final String LIPSTICK_URL_PROP = "lipstick.server.url";
 
     protected LipstickPigServer ps;
@@ -116,10 +118,11 @@ public class LipstickPPNL implements PigProgressNotificationListener {
 
             if (clientIsActive()) {
                 Properties props = context.getProperties();
-                String uuid = (String) props.get(LIPSTICK_UUID_PROP);
+                String uuidPropName = props.getProperty(LIPSTICK_UUID_PROP_NAME, LIPSTICK_UUID_PROP_DEFAULT);
+                String uuid = props.getProperty(uuidPropName);
                 if ((uuid == null) || uuid.isEmpty()) {
                     uuid = UUID.randomUUID().toString();
-                    props.put(LIPSTICK_UUID_PROP, uuid);
+                    props.put(uuidPropName, uuid);
                 }
                 LOG.info("UUID: " + uuid);
                 LOG.info(clients);
