@@ -111,7 +111,6 @@ project(':lipstick-server') {
         commandLine './grailsw', 'set-version', version
         commandLine './grailsw', 'prod', 'war'
     }
-    task('build', dependsOn: 'war')
 }
 
 project(':lipstick-console') {
