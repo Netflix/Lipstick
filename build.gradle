@@ -81,7 +81,6 @@ task('clean-expanded', type:Delete) {
     delete 'build'
 }
 
-
 project(':lipstick-server') {
     task('clean', type:Exec) {
         commandLine './grailsw', 'clean'
@@ -186,6 +185,13 @@ project(':lipstick-console') {
 
     jar {
         it.dependsOn ':clean-expanded', 'buildinfo'
+        manifest { attributes 'Main-Class': 'com.netflix.lipstick.Main' }
+    }
+
+    task fullJar(type: Jar) {
+        it.dependsOn ':clean-expanded', 'buildinfo'
+        classifier = "full"
+        from sourceSets.main.output // that's it
         from { configurations.includeInJar.collect { it.isDirectory() ? it : zipTree(it) } }
         manifest { attributes 'Main-Class': 'com.netflix.lipstick.Main' }
     }
