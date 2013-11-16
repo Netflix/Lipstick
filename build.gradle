@@ -65,7 +65,7 @@ license {
 
 defaultTasks 'buildRelease'
 
-task('buildRelease', type:Copy, dependsOn: ['clean-expanded', ':lipstick-server:war']) {
+task('buildRelease', type:Copy, dependsOn: ['clean-expanded', ':lipstick-console:allJars', ':lipstick-server:war']) {
     group = "Lipstick"
     description = 'Build lipstick-server and lipstick-console and copy the artifacts to the build dir.'
     from ('./lipstick-server/target') {
@@ -87,16 +87,16 @@ project(':lipstick-server') {
     }
     task('clean-lib', type:Delete) {
         ant.delete (includeEmptyDirs: 'true', quiet: 'true') {
-            fileset(dir: file('lipstick-server/lib'), includes: /*'lipstick-console*.jar'*/'*.jar')
+            fileset(dir: file('lipstick-server/lib'), includes: '*.jar')
         }
     }
     task('import-jar', type:Copy, dependsOn: [':lipstick-console:jar','clean-lib']) {
         from ('../lipstick-console/build/libs') {
-            include '*.jar'
+            include '*withHadoop.jar'
         }
         into ('lib')
     }
-    task('debug', type:Exec, dependsOn: 'import-jar') {
+    task('debug', type:Exec, dependsOn: ['import-jar', ':lipstick-console:hadoopJar'])  {
         group = "Lipstick"
         description = 'Run lipstick-server in debug mode. Runs on port 8080. Set -Pport=[port] to change.'
         commandLine './grailsw', '-Dserver.port=' + (project.hasProperty('port') ? port : 8080), 'run-app'
@@ -169,6 +169,7 @@ project(':lipstick-console') {
     }
 
     task fullJar(type: Jar) {
+        doLast { delete '../build' }
         it.dependsOn ':clean-expanded', 'buildinfo'
         classifier = "full"
         from sourceSets.main.output // that's it
@@ -177,6 +178,7 @@ project(':lipstick-console') {
     }
 
     task pigJar(type: Jar) {
+        doLast { delete '../build' }
         it.dependsOn ':clean-expanded', 'buildinfo'
         classifier = "withPig"
         from sourceSets.main.output // that's it
@@ -185,11 +187,16 @@ project(':lipstick-console') {
     }
 
     task hadoopJar(type: Jar) {
+        doLast { delete '../build' }
         it.dependsOn ':clean-expanded', 'buildinfo'
         classifier = "withHadoop"
         from sourceSets.main.output // that's it
         from { configurations.hadoopInJar.collect { it.isDirectory() ? it : zipTree(it) } }
         manifest { attributes 'Main-Class': 'com.netflix.lipstick.Main' }
+    }
+
+    task allJars {
+        it.dependsOn 'jar', 'fullJar', 'pigJar', 'hadoopJar'
     }
 
     task('buildinfo', type:Copy) {
