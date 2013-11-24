@@ -199,6 +199,15 @@ project(':lipstick-console') {
         it.dependsOn 'jar', 'fullJar', 'pigJar', 'hadoopJar'
     }
 
+    configurations.archives {
+        extendsFrom configurations.sources
+        extendsFrom configurations.javadoc
+        extendsFrom configurations.includeInJar
+        extendsFrom configurations.pigInJar
+        extendsFrom configurations.hadoopInJar
+    }
+
+
     task('buildinfo', type:Copy) {
         group = "Lipstick"
         description = 'put the build information into lipstick-build.txt'
