@@ -65,7 +65,7 @@ license {
 
 defaultTasks 'buildRelease'
 
-task('buildRelease', type:Copy, dependsOn: ['clean-expanded', ':lipstick-server:war']) {
+task('buildRelease', type:Copy, dependsOn: ['clean-expanded', ':lipstick-console:allJars', ':lipstick-server:war']) {
     group = "Lipstick"
     description = 'Build lipstick-server and lipstick-console and copy the artifacts to the build dir.'
     from ('./lipstick-server/target') {
@@ -81,23 +81,22 @@ task('clean-expanded', type:Delete) {
     delete 'build'
 }
 
-
 project(':lipstick-server') {
     task('clean', type:Exec) {
         commandLine './grailsw', 'clean'
     }
     task('clean-lib', type:Delete) {
         ant.delete (includeEmptyDirs: 'true', quiet: 'true') {
-            fileset(dir: file('lipstick-server/lib'), includes: /*'lipstick-console*.jar'*/'*.jar')
+            fileset(dir: file('lipstick-server/lib'), includes: '*.jar')
         }
     }
     task('import-jar', type:Copy, dependsOn: [':lipstick-console:jar','clean-lib']) {
         from ('../lipstick-console/build/libs') {
-            include '*.jar'
+            include '*withHadoop.jar'
         }
         into ('lib')
     }
-    task('debug', type:Exec, dependsOn: 'import-jar') {
+    task('debug', type:Exec, dependsOn: ['import-jar', ':lipstick-console:hadoopJar'])  {
         group = "Lipstick"
         description = 'Run lipstick-server in debug mode. Runs on port 8080. Set -Pport=[port] to change.'
         commandLine './grailsw', '-Dserver.port=' + (project.hasProperty('port') ? port : 8080), 'run-app'
@@ -120,55 +119,33 @@ project(':lipstick-console') {
 
     configurations {
         includeInJar
+        pigInJar
+        hadoopInJar
     }
 
     dependencies {
-        def libs = ['dk.brics.automaton:automaton:1.11-8',
-         'org.codehaus.jackson:jackson-mapper-asl:1.9.10',
-         'com.google.guava:guava:12.0',
-         'org.kohsuke:graphviz-api:1.1',
-         'org.apache.commons:commons-io:1.3.2',
-         'log4j:log4j:1.2.17',
-         'joda-time:joda-time:1.6',
-         'com.googlecode.jatl:jatl:0.2.2',
-         'com.sun.jersey:jersey-client:1.8',
-         'com.sun.jersey:jersey-core:1.8',
-         'jline:jline:0.9.94',
-         'org.antlr:antlr:3.4',
-         'org.antlr:antlr-runtime:3.4',
-        ]
+         includeInJar('dk.brics.automaton:automaton:1.11-8')
+         includeInJar('org.codehaus.jackson:jackson-mapper-asl:1.9.10')
+         includeInJar('com.google.guava:guava:12.0')
+         includeInJar('org.kohsuke:graphviz-api:1.1')
+         includeInJar('org.apache.commons:commons-io:1.3.2')
+         includeInJar('log4j:log4j:1.2.17')
+         includeInJar('joda-time:joda-time:1.6')
+         includeInJar('com.googlecode.jatl:jatl:0.2.2')
+         includeInJar('com.sun.jersey:jersey-client:1.8')
+         includeInJar('com.sun.jersey:jersey-core:1.8')
+         includeInJar('jline:jline:0.9.94')
+         includeInJar('org.antlr:antlr:3.4')
+         includeInJar('org.antlr:antlr-runtime:3.4')
 
-        for (l in libs) {
-            if (project.hasProperty('withoutDependencies')) {
-                compile(l)
-            } else {
-                includeInJar(l)
-            }
-        }
-
-        if(project.hasProperty('withoutPig') || project.hasProperty('withoutDependencies')) {
-            println "building jar without Pig"
-            compile('org.apache.pig:pig:0.11.1') {
+         pigInJar('org.apache.pig:pig:0.11.1') {
                 exclude module: 'hsqld'
                 exclude module: 'jetty'
                 exclude module: 'jsp-api-2.1'
                 exclude module: 'servlet-api-2.5'
-            }
-        } else {
-            includeInJar('org.apache.pig:pig:0.11.1') {
-                exclude module: 'hsqld'
-                exclude module: 'jetty'
-                exclude module: 'jsp-api-2.1'
-                exclude module: 'servlet-api-2.5'
-            }
         }
 
-        if(project.hasProperty('withHadoop')) {
-            println "building jar with Hadoop"
-            includeInJar 'org.apache.hadoop:hadoop-core:' + (project.hasProperty('hadoopVersion') ? hadoopVersion : '1.1.0')
-        } else {
-            compile 'org.apache.hadoop:hadoop-core:' + (project.hasProperty('hadoopVersion') ? hadoopVersion : '1.1.0')
-        }
+        hadoopInJar 'org.apache.hadoop:hadoop-core:' + (project.hasProperty('hadoopVersion') ? hadoopVersion : '1.1.0')
 
         compile 'org.hibernate:hibernate-entitymanager:3.6.0.Final'
 
@@ -177,7 +154,9 @@ project(':lipstick-console') {
         testCompile 'org.mockito:mockito-core:1.9.5'
         testCompile 'org.powermock:powermock-api-mockito:1.5'
 
-        configurations.compile.extendsFrom(configurations.includeInJar)
+        configurations.pigInJar.extendsFrom(configurations.includeInJar)
+        configurations.hadoopInJar.extendsFrom(configurations.pigInJar)
+        configurations.compile.extendsFrom(configurations.includeInJar, configurations.pigInJar, configurations.hadoopInJar)
     }
 
     test {
@@ -186,8 +165,38 @@ project(':lipstick-console') {
 
     jar {
         it.dependsOn ':clean-expanded', 'buildinfo'
+        manifest { attributes 'Main-Class': 'com.netflix.lipstick.Main' }
+    }
+
+    task fullJar(type: Jar) {
+        doLast { delete '../build' }
+        it.dependsOn ':clean-expanded', 'buildinfo'
+        classifier = "full"
+        from sourceSets.main.output // that's it
         from { configurations.includeInJar.collect { it.isDirectory() ? it : zipTree(it) } }
         manifest { attributes 'Main-Class': 'com.netflix.lipstick.Main' }
+    }
+
+    task pigJar(type: Jar) {
+        doLast { delete '../build' }
+        it.dependsOn ':clean-expanded', 'buildinfo'
+        classifier = "withPig"
+        from sourceSets.main.output // that's it
+        from { configurations.pigInJar.collect { it.isDirectory() ? it : zipTree(it) } }
+        manifest { attributes 'Main-Class': 'com.netflix.lipstick.Main' }
+    }
+
+    task hadoopJar(type: Jar) {
+        doLast { delete '../build' }
+        it.dependsOn ':clean-expanded', 'buildinfo'
+        classifier = "withHadoop"
+        from sourceSets.main.output // that's it
+        from { configurations.hadoopInJar.collect { it.isDirectory() ? it : zipTree(it) } }
+        manifest { attributes 'Main-Class': 'com.netflix.lipstick.Main' }
+    }
+
+    task allJars {
+        it.dependsOn 'jar', 'fullJar', 'pigJar', 'hadoopJar'
     }
 
     task('buildinfo', type:Copy) {
