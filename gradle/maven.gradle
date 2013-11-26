@@ -13,7 +13,8 @@ signing {
  * central, so using custom upload task.
  */
 task uploadMavenCentral(type:Upload, dependsOn: [signArchives, ':lipstick-console:allJars']) {
-    configuration = configurations.archives
+    it.configuration = configurations.archives
+
     onlyIf { ['release', 'snapshot'].contains(project.status) }
         repositories.mavenDeployer {
             beforeDeployment { signing.signPom(it) }
@@ -66,4 +67,3 @@ task uploadMavenCentral(type:Upload, dependsOn: [signArchives, ':lipstick-consol
                 }
         }
 }
-

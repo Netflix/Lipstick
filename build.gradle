@@ -115,7 +115,6 @@ project(':lipstick-server') {
 project(':lipstick-console') {
     apply plugin: 'eclipse'
     apply from: file('../gradle/convention.gradle')
-    apply from: file('../gradle/maven.gradle')
 
     configurations {
         includeInJar
@@ -207,6 +206,13 @@ project(':lipstick-console') {
         extendsFrom configurations.hadoopInJar
     }
 
+    artifacts {
+        includeInJar fullJar
+        pigInJar pigJar
+        hadoopInJar hadoopJar
+    }
+
+	apply from: file('../gradle/maven.gradle')
 
     task('buildinfo', type:Copy) {
         group = "Lipstick"
