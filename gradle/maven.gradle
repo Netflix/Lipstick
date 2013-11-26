@@ -12,14 +12,15 @@ signing {
  * artifactory will execute uploadArchives to force generation of ivy.xml, and we don't want that to trigger an upload to maven
  * central, so using custom upload task.
  */
-task uploadMavenCentral(type:Upload, dependsOn: signArchives) {
-    configuration = configurations.archives
+task uploadMavenCentral(type:Upload, dependsOn: [signArchives, ':lipstick-console:allJars']) {
+    it.configuration = configurations.archives
+
     onlyIf { ['release', 'snapshot'].contains(project.status) }
         repositories.mavenDeployer {
             beforeDeployment { signing.signPom(it) }
 
             // To test deployment locally, use the following instead of oss.sonatype.org
-            //repository(url: "file://localhost/${rootProject.rootDir}/repo")
+            //snapshotRepository(url: "file://localhost/${rootProject.rootDir}/repo")
 
             def sonatypeUsername = rootProject.hasProperty('sonatypeUsername')?rootProject.sonatypeUsername:''
             def sonatypePassword = rootProject.hasProperty('sonatypePassword')?rootProject.sonatypePassword:''
@@ -66,4 +67,3 @@ task uploadMavenCentral(type:Upload, dependsOn: signArchives) {
                 }
         }
 }
-

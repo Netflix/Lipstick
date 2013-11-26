@@ -115,7 +115,6 @@ project(':lipstick-server') {
 project(':lipstick-console') {
     apply plugin: 'eclipse'
     apply from: file('../gradle/convention.gradle')
-    apply from: file('../gradle/maven.gradle')
 
     configurations {
         includeInJar
@@ -198,6 +197,22 @@ project(':lipstick-console') {
     task allJars {
         it.dependsOn 'jar', 'fullJar', 'pigJar', 'hadoopJar'
     }
+
+    configurations.archives {
+        extendsFrom configurations.sources
+        extendsFrom configurations.javadoc
+        extendsFrom configurations.includeInJar
+        extendsFrom configurations.pigInJar
+        extendsFrom configurations.hadoopInJar
+    }
+
+    artifacts {
+        includeInJar fullJar
+        pigInJar pigJar
+        hadoopInJar hadoopJar
+    }
+
+	apply from: file('../gradle/maven.gradle')
 
     task('buildinfo', type:Copy) {
         group = "Lipstick"

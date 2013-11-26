@@ -24,7 +24,7 @@ task forceRelease {
 }
 release.dependsOn([forceCandidate, forceRelease])
 
-task uploadMavenCentral(dependsOn: ":lipstick-console:uploadMavenCentral")
+task uploadMavenCentral(dependsOn: [':lipstick-console:uploadMavenCentral'])
 task releaseSnapshot(dependsOn: [uploadMavenCentral])
 
 // Ensure our versions look like the project status before publishing
