@@ -144,7 +144,7 @@ project(':lipstick-console') {
                 exclude module: 'servlet-api-2.5'
         }
 
-        hadoopInJar 'org.apache.hadoop:hadoop-core:' + (project.hasProperty('hadoopVersion') ? hadoopVersion : '1.1.0') {
+        hadoopInJar( 'org.apache.hadoop:hadoop-core:' + (project.hasProperty('hadoopVersion') ? hadoopVersion : '1.1.0')) {
                 exclude module: 'hsqld'
                 exclude module: 'jetty'
                 exclude module: 'jsp-api-2.1'
