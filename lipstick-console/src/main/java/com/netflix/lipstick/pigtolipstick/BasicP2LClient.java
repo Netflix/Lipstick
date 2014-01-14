@@ -260,6 +260,9 @@ public class BasicP2LClient implements P2LClient {
             jobIdToJobStatusMap.get(jobId).setMapProgress(1);
             jobIdToJobStatusMap.get(jobId).setReduceProgress(1);
         }
+        jobIdToJobStatusMap.get(jobId).setBytesWritten(jobStats.getBytesWritten());
+        jobIdToJobStatusMap.get(jobId).setRecordsWritten(jobStats.getRecordWrittern());
+
         updatePlanStatusForCompletedJobId(planStatus, jobId);
         psClient.saveStatus(planId, planStatus);
 

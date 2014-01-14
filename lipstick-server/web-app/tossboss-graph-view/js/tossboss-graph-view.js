@@ -617,14 +617,24 @@
             $('.'+jobId+' div.map').html(mapProgress+'%');
             $('.'+jobId+' div.reduce').css('width',reduceProgress+'%');
             $('.'+jobId+' div.reduce').html(reduceProgress+'%');
+
             // Add class for finished job.
-            if (jobStats.isComplete && jobStats.isSuccessful) {
+            var jobWarnings = GraphView.findJobWarnings(jobStats);
+            if (0 < jobWarnings.length) {
+                $('g#'+scopeId).attr('class','cluster warnings');
+            } else if (jobStats.isComplete && jobStats.isSuccessful) {
                 $('g#'+scopeId).attr('class','cluster success');
             }
             else if (jobStats.isComplete && !jobStats.isSuccessful) {
                 $('g#'+scopeId).attr('class','cluster fail');
             }
+
+            /* And rendering warnings if complete or not */
+            if (0 < jobWarnings.length) {
+                GraphView.renderJobWarnings(jobId, scopeId, jobWarnings);
+            }
         });
+
         // Draw script progress bar.
         $('div.navbar .progress').show();
         $('div.navbar .progress').removeClass('active').removeClass('progress-success').removeClass('progress-info').removeClass('progress-danger').removeClass('progress-warning').removeClass('progress-striped');
@@ -651,7 +661,95 @@
         // Change bgcolor of finished map-reduce jobs.
         $('g.cluster.success polygon').css('fill','#CFE1E8');
         $('g.cluster.fail polygon').css('fill','#FFEBEB');
+        $('g.cluster.warnings polygon').css('fill','#FFD6AD');
     },
+
+    /* Find and construct any warning messages relevant to this specific
+       map reduce job.  */
+    findJobWarnings: function(jobStats) {
+        var jobWarnings = [];
+        if (0 == jobStats.recordsWritten) {
+            jobWarnings.push("No records were written by this map/reduce job");
+        }
+        return jobWarnings;
+    },
+
+    /* Draw out warnings modal and icon for a job */
+    renderJobWarnings: function(jobId, scopeId, warnings) {
+        if (!(0 < warnings.length)) {
+            console.log("No warnings supplied so I will not render these");
+            return;
+        }
+        if (0 == $("#warning-modal-" + scopeId).length) {
+            GraphView.addWarningModal(jobId, scopeId);
+        }
+
+        if (0 == $("#warning-icon-" + scopeId).length) {
+            GraphView.addWarningIcon(scopeId);
+        }
+        
+        GraphView.setJobWarnings(scopeId, warnings);
+    },
+
+    /* Draw out warnings icon for a job */
+    addWarningIcon: function (scopeId) {
+        var icon = $("<i>", {
+            'class': 'icon-warning-sign sample-output-icon intermediate',
+            'id': "warning-icon-" + scopeId,
+        });
+
+        var scopeBox = $("#" + scopeId);
+        if (0 == scopeBox.length) {
+            return;
+        }
+        scopeBox = scopeBox[0];
+        var boundingBox = scopeBox.getBBox();
+        var matrix  = scopeBox.getCTM();
+        var svg = $(scopeBox).closest('svg').get(0);
+        var pt_tl  = svg.createSVGPoint();
+        var pt_br  = svg.createSVGPoint();
+
+        pt_tl.x = boundingBox.x; 
+        pt_tl.y = boundingBox.y; 
+        pt_br.x = boundingBox.x + boundingBox.width; 
+        pt_br.y = boundingBox.y + boundingBox.height; 
+        pt_tl = pt_tl.matrixTransform(matrix);
+        pt_br = pt_br.matrixTransform(matrix);
+        
+        $(GraphView.options.graphSel).append(icon);
+        icon.css('position', 'absolute');
+        iconTop = pt_tl.y - icon.outerHeight() + 12;
+        iconLeft = pt_br.x + 10;
+
+        icon.css({top:  iconTop  + 'px',
+                      left: iconLeft + 'px'}).show();
+        $("#warning-icon-" + scopeId).on('click', function () {
+            console.log("Warning Icon clicked for scope " + scopeId);
+            $("#warning-modal-" + scopeId).modal('toggle'); 
+        });
+    },
+
+    /* Draw out warnings modal for a job */
+    addWarningModal: function (jobId, scopeId) {
+        $('body').prepend(_.template(Templates.jobWarningModalTmpl, {'job_id': jobId, 'scope_id': scopeId}, {variable:'data'}));
+        $("#warning-modal-" + scopeId).css({
+            'width': function () {
+                return ($(document).width() * .9) + 'px';
+            },
+            'margin-left': function () {
+                return -($(this).width() / 2);
+            }
+        })
+    },
+
+    setJobWarnings: function(scopeId, warnings) {
+        console.log("Setting job warnings for " + scopeId);
+        var modal = $('#warning-modal-body-' + scopeId);
+        modal.empty();
+        var html = _.template(Templates.jobWarningModalBodyTmpl, {'job_warnings': warnings}, {variable:'data'})
+        modal.append(html);
+    },
+
     /**
      * Adds a text element to the edge
      *

@@ -196,4 +196,21 @@ mrJobsTmpl: ' \
 </table> \
 ',
 
+    jobWarningModalTmpl: ' \
+<div id="warning-modal-<%= data.scope_id %>" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true"> \
+    <div class="modal-header"><button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button><h3> \
+      Map/Reduce Job Warnings for <%= data.job_id %> \
+    </h3></div> \
+    <div id="warning-modal-body-<%= data.scope_id %>" class="modal-body"> \
+    </div> \
+</div> \
+',
+    jobWarningModalBodyTmpl: ' \
+      <ul> \
+      <% for (var i=0; i < data.job_warnings.length; i++) { %> \
+        <li><%= data.job_warnings[i] %></li> \
+      <% } %> \
+      </ul> \
+',
+
 };

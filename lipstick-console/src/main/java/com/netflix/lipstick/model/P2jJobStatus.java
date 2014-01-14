@@ -45,6 +45,9 @@ public class P2jJobStatus {
     private long id;
     private long startTime;
     private long finishTime;
+    private long recordsWritten;
+    private long bytesWritten;
+
 
     /**
      * Initialize an empty P2jJobStatus object.
@@ -167,4 +170,19 @@ public class P2jJobStatus {
         this.finishTime = finishTime;
     }
 
+    public long getRecordsWritten() {
+        return recordsWritten;
+    }
+
+    public void setRecordsWritten(long recordsWritten) {
+        this.recordsWritten = recordsWritten;
+    }
+
+    public long getBytesWritten() {
+        return bytesWritten;
+    }
+
+    public void setBytesWritten(long bytesWritten) {
+        this.bytesWritten = bytesWritten;
+    }
 }
