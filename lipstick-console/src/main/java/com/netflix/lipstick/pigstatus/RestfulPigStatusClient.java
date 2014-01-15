@@ -42,8 +42,9 @@ public class RestfulPigStatusClient implements PigStatusClient {
     private static final Log LOG = LogFactory.getLog(RestfulPigStatusClient.class);
 
     protected ObjectMapper om = new ObjectMapper();
+    protected String[] initialUrls = null;
     protected String serviceUrl = null;
-
+    
     /**
      * Constructs a default RestfulPigStatusClient.
      */
@@ -51,36 +52,39 @@ public class RestfulPigStatusClient implements PigStatusClient {
     }
 
     /**
-     * Constructs a RestfulPigStatusClient with the given serviceUrl.
+     * Constructs a RestfulPigStatusClient with the given serviceUrls.
      *
-     * @param serviceUrl
+     * @param serviceUrls
      */
-    public RestfulPigStatusClient(String serviceUrl) {
-        LOG.info("Initializing " + this.getClass() + " with serviceUrl: " + serviceUrl);
-        this.serviceUrl = serviceUrl;
+    public RestfulPigStatusClient(String serviceUrls) {
+        LOG.info("Initializing " + this.getClass() + " with serviceUrls: " + serviceUrls);
+        this.initialUrls = serviceUrls.split(",");
     }
 
     @Override
     public String savePlan(P2jPlanPackage plans) {
         plans.getStatus().setHeartbeatTime();
-        String resourceUrl = serviceUrl + "/job/";
-        ClientResponse response = sendRequest(resourceUrl, plans, RequestVerb.POST);
-        if (response == null) {
-	        return null;
-        }
+        for (String url : initialUrls) {
+            String resourceUrl = url + "/job/";
+            LOG.info("Trying Lipstick server url ["+url+"]");
+            ClientResponse response = sendRequest(resourceUrl, plans, RequestVerb.POST);
+            if (response != null) {
+                serviceUrl = url;
 
-        try {
-            String output = (String) om.readValue(response.getEntity(String.class), Map.class).get("uuid");
-            if (!plans.getUuid().equals(output)) {
-                LOG.error("Incorrect uuid returned from server");
+                try {
+                    String output = (String) om.readValue(response.getEntity(String.class), Map.class).get("uuid");
+                    if (!plans.getUuid().equals(output)) {
+                        LOG.error("Incorrect uuid returned from server");
+                    }
+                    LOG.info("This script has been assigned uuid: " + output);
+                    LOG.info("Navigate to " + serviceUrl + "#job/" + output + " to view progress.");
+                    return plans.getUuid();
+
+                } catch (Exception e) {
+                    LOG.error("Error getting uuid from server response.", e);
+                }
             }
-            LOG.info("This script has been assigned uuid: " + output);
-            LOG.info("Navigate to " + serviceUrl + "#job/" + output + " to view progress.");
-            return plans.getUuid();
-
-        } catch (Exception e) {
-            LOG.error("Error getting uuid from server response.", e);
-        }
+        }        
         return null;
     }
 
