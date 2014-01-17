@@ -214,7 +214,7 @@ mrJobsTmpl: ' \
 ',
 
     jobWarningMessages: {
-        noOutputRecords: "Map/Reduce job <%= jobId %> did not produce any records",
+        noOutputRecords: "Job did not produce any output records",
     },
 
 };

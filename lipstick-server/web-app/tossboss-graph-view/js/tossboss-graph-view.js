@@ -670,8 +670,10 @@
         var jobWarnings = [];
         for (warningKey in jobStats.warnings) {
             jobWarnings.push(
-                _.template(Templates.jobWarningMessages, jobStats.warnings[warningKey], {variable:'data'})
-            );
+                _.template(Templates.jobWarningMessages[warningKey], 
+                           jobStats.warnings[warningKey], 
+                           {variable:'data'}));
+        }
         return jobWarnings;
     },
 
