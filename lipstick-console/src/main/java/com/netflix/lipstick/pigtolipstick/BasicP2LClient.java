@@ -53,12 +53,14 @@ import com.google.common.collect.Sets;
 import com.netflix.lipstick.MRPlanCalculator;
 import com.netflix.lipstick.P2jPlanGenerator;
 import com.netflix.lipstick.model.P2jCounters;
+import com.netflix.lipstick.model.P2jWarning;
 import com.netflix.lipstick.model.P2jJobStatus;
 import com.netflix.lipstick.model.P2jPlanPackage;
 import com.netflix.lipstick.model.P2jPlanStatus;
 import com.netflix.lipstick.model.P2jPlanStatus.StatusText;
 import com.netflix.lipstick.model.P2jSampleOutput;
 import com.netflix.lipstick.model.P2jSampleOutputList;
+import com.netflix.lipstick.warnings.JobWarnings;
 import com.netflix.lipstick.pigstatus.PigStatusClient;
 import com.netflix.lipstick.pigstatus.RestfulPigStatusClient;
 import com.netflix.lipstick.util.OutputSampler;
@@ -262,6 +264,7 @@ public class BasicP2LClient implements P2LClient {
         }
         jobIdToJobStatusMap.get(jobId).setBytesWritten(jobStats.getBytesWritten());
         jobIdToJobStatusMap.get(jobId).setRecordsWritten(jobStats.getRecordWrittern());
+        jobIdToJobStatusMap.get(jobId).setWarnings(getCompletedJobWarnings(jobStats));
 
         updatePlanStatusForCompletedJobId(planStatus, jobId);
         psClient.saveStatus(planId, planStatus);
@@ -426,5 +429,40 @@ public class BasicP2LClient implements P2LClient {
         }
 
         return null;
+    }
+
+    public Map<String, P2jTaskStatus> buildTaskStatusMap(TaskReport[] taskReports) {
+        Map<String, P2jTaskStatus> taskMap = Maps.newHashMap();
+        for (int i = 0; i < taskReports.length; i++) {
+            TaskReport task = taskReports[i];
+            String taskId = task.getTaskID().toString();
+
+            P2jTaskStatus taskStatus = new P2jTaskStatus();
+            taskStatus.setState(task.getState());
+            taskStatus.setProgress(task.getProgress());
+            taskStatus.setStartTime(task.getStartTime());
+            taskStatus.setFinishTime(task.getFinishTime());
+            taskStatus.setTaskId(taskId);
+            taskStatus.setCounters(buildCountersMap(task.getCounters()));
+            taskMap.put(taskId, taskStatus);
+        }
+        return taskMap;
+    }
+
+    public Map<String, P2jCounters> buildCountersMap(Counters counters) {
+        Map<String, P2jCounters> cMap = Maps.newHashMap();
+        for (Group g : counters) {
+            P2jCounters countersObj = new P2jCounters();
+            cMap.put(g.getDisplayName(), countersObj);
+            for (Counter c : g) {
+                countersObj.getCounters().put(c.getDisplayName(), c.getValue());
+            }
+        }
+        return cMap;
+    }
+
+    public Map<String, P2jWarning> getCompletedJobWarnings(JobStats jobStats) {
+        JobWarnings jw = new JobWarnings();
+        return jw.findCompletedJobWarnings(jobStats);
     }
 }
