@@ -668,9 +668,10 @@
        map reduce job.  */
     findJobWarnings: function(jobStats) {
         var jobWarnings = [];
-        if (0 == jobStats.recordsWritten) {
-            jobWarnings.push("No records were written by this map/reduce job");
-        }
+        for (warningKey in jobStats.warnings) {
+            jobWarnings.push(
+                _.template(Templates.jobWarningMessages, jobStats.warnings[warningKey], {variable:'data'})
+            );
         return jobWarnings;
     },
 

@@ -22,7 +22,7 @@ import com.netflix.lipstick.model.P2jWarning;
 
 public class JobWarnings {
 
-    public final String NO_OUTPUT_RECORDS_KEY = "no_output_records";
+    public final String NO_OUTPUT_RECORDS_KEY = "noOutputRecords";
 
     public boolean shouldNoOuputRecordsWarn(JobStats jobStats) {
         if (0 == jobStats.getRecordWrittern()) {
