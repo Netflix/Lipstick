@@ -50,6 +50,7 @@
         runningMapSel: 'g.cluster.running-map > polygon',
         runningRedSel: 'g.cluster.running-reduce > polygon',
         graphState : {},
+        showWarnings: true,
     },
     /**
      * Start all custom event listeners.
@@ -620,7 +621,7 @@
 
             // Add class for finished job.
             var jobWarnings = GraphView.findJobWarnings(jobStats);
-            if (0 < jobWarnings.length) {
+            if ((0 < jobWarnings.length) && (GraphView.options.showWarnings)) {
                 $('g#'+scopeId).attr('class','cluster warnings');
             } else if (jobStats.isComplete && jobStats.isSuccessful) {
                 $('g#'+scopeId).attr('class','cluster success');
@@ -630,7 +631,7 @@
             }
 
             /* And rendering warnings if complete or not */
-            if (0 < jobWarnings.length) {
+            if ((0 < jobWarnings.length) && (GraphView.options.showWarnings)) {
                 GraphView.renderJobWarnings(jobId, scopeId, jobWarnings);
             }
         });
