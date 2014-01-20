@@ -404,17 +404,9 @@ public class BasicP2LClient implements P2LClient {
             }
 
             JobID jobID = rj.getID();
-            Counters counters = rj.getCounters();
-            Map<String, P2jCounters> cMap = Maps.newHashMap();
-            for (Group g : counters) {
-                P2jCounters countersObj = new P2jCounters();
-                cMap.put(g.getDisplayName(), countersObj);
-                for (Counter c : g) {
-                    countersObj.getCounters().put(c.getDisplayName(), c.getValue());
-                }
-            }
+            js.setCounters(buildCountersMap(rj.getCounters()));
+            js.setWarnings(getRunningJobWarnings(jobClient, jobID));
 
-            js.setCounters(cMap);
             TaskReport[] mapTaskReport = jobClient.getMapTaskReports(jobID);
             TaskReport[] reduceTaskReport = jobClient.getReduceTaskReports(jobID);
             js.setJobName(rj.getJobName());
@@ -466,5 +458,10 @@ public class BasicP2LClient implements P2LClient {
     public Map<String, P2jWarning> getCompletedJobWarnings(JobClient jobClient, JobStats jobStats) {
         JobWarnings jw = new JobWarnings();
         return jw.findCompletedJobWarnings(jobClient, jobStats);
+    }
+
+    public Map<String, P2jWarning> getRunningJobWarnings(JobClient jobClient, JobID jobId) {
+        JobWarnings jw = new JobWarnings();
+        return jw.findRunningJobWarnings(jobClient, jobId.toString());
     }
 }
