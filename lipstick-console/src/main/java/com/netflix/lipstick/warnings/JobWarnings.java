@@ -210,7 +210,10 @@ public class JobWarnings {
                than a csv.  I feel shame at this. */
             String sris = Joiner.on(",").join(skewedReducerIds);
                 addWarning(jobId, warnings, SKEWED_REDUCERS_KEY, 
-                           ImmutableMap.of("skewedReducerIds", sris));
+                           ImmutableMap.of(
+                                           "skewedReducerIds", sris,
+                                           "numberSkewedReducers", Integer.toString(skewedReducerIds.size())
+                                           ));
         }
         return warnings;
     }
