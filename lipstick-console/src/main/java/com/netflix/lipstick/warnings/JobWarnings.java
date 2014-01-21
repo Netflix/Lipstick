@@ -53,8 +53,16 @@ public class JobWarnings {
     /* Require that there are a minimum num of reducer tasks to consider
        a job reducer skewed to prevent a high level of false posititives
        that ensue otherwise. */
-    public static final int MAX_REDUCERS_FOR_SKEW = 2;
+    public static final int MIN_REDUCERS_FOR_SKEW = 2;
 
+    /* We use the standard deviation as a reference for determining if
+       a slow running reducer is skewing.  In order to deal with a set
+       of reducers that has a small deviation, we override stddev in 
+       the case that it is exceedingly small. This compensates for 
+       reducers whose runtime is larger than the rest of the reducers
+       in the job but whose runtime is still fast enough that we don't
+       need to warn about it. */
+    public static final double MIN_STDDEV_DELTA_MINUTES = 10;
 
     public boolean shouldNoOuputRecordsWarn(JobStats jobStats, String jobId) {
         if (0 == jobStats.getRecordWrittern()) {
@@ -109,7 +117,7 @@ public class JobWarnings {
        Version 0.1 pending more data about reducer skew.  This is
        to be considered a best effort for now. */
     public List<String> findSkewedReducers(List<ReducerDuration> reducerTimes) {
-        if (! (MAX_REDUCERS_FOR_SKEW < reducerTimes.size())) {
+        if (! (MIN_REDUCERS_FOR_SKEW < reducerTimes.size())) {
             return Lists.newLinkedList();
         }
 
@@ -132,7 +140,7 @@ public class JobWarnings {
         /* If the time to complete the task is more than this far
            from the mean of all task completion times, we consider
            it skewed */
-        double distToMeanThreshold  = (refStdDev * 2) + refMean;
+        double distToMeanThreshold  = Math.max((refStdDev * 2), (MIN_STDDEV_DELTA_MINUTES * 60)) + refMean;
 
         /* Now collect and return any of the outliers whose distance
            from the mean is great than the computed threshold. */
