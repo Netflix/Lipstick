@@ -209,8 +209,8 @@ public class JobWarnings {
             /* todo: find a better why to shove a list into the attribute map
                than a csv.  I feel shame at this. */
             String sris = Joiner.on(",").join(skewedReducerIds);
-                addWarning(jobId, warnings, NO_OUTPUT_RECORDS_KEY, 
-                           ImmutableMap.of(SKEWED_REDUCERS_KEY, sris));
+                addWarning(jobId, warnings, SKEWED_REDUCERS_KEY, 
+                           ImmutableMap.of("skewedReducerIds", sris));
         }
         return warnings;
     }
