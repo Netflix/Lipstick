@@ -32,7 +32,7 @@ public class JobWarningsTest {
         List<String> taskIds;
         JobWarnings.ReducerDuration rd;
 
-        for (int i = 0; i < JobWarnings.MAX_REDUCERS_FOR_SKEW; i++) {
+        for (int i = 0; i < JobWarnings.MIN_REDUCERS_FOR_SKEW; i++) {
             rd = new JobWarnings.ReducerDuration("Some Job", i);
             reducerTimes.add(rd);
             taskIds = jw.findSkewedReducers(reducerTimes);
