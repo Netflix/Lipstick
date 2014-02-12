@@ -265,10 +265,16 @@ public class BasicP2LClient implements P2LClient {
         jobIdToJobStatusMap.get(jobId).setBytesWritten(jobStats.getBytesWritten());
         jobIdToJobStatusMap.get(jobId).setRecordsWritten(jobStats.getRecordWrittern());
 
+        updatePlanStatusForCompletedJobId(planStatus, jobId);
+
+        /* Set the completed job warnings after calling updatePlanStatusForCompletedJobId() otherwise
+           we end up overwriting the warning field with the running job warnings (which are included
+           with the completed job warnings). */
         JobClient jobClient = PigStats.get().getJobClient();
         jobIdToJobStatusMap.get(jobId).setWarnings(getCompletedJobWarnings(jobClient, jobStats));
 
-        updatePlanStatusForCompletedJobId(planStatus, jobId);
+        
+
         psClient.saveStatus(planId, planStatus);
 
         if(enableSampleOutput) {

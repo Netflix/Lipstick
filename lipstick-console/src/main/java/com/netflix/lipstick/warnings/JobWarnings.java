@@ -64,7 +64,14 @@ public class JobWarnings {
        need to warn about it. */
     public static final double MIN_STDDEV_DELTA_MINUTES = 10;
 
-    public boolean shouldNoOuputRecordsWarn(JobStats jobStats, String jobId) {
+    /* The size on disk of an HDFS directory. When a m/r job writes zero
+       records it creates a directory for its output on HDFS. In order to
+       tell the difference between records written and a directory written
+       but no records written we compare the size of the output to this 
+       contstant. */
+    public static final long HDFS_DIRECTORY_SIZE = 154;
+
+    public boolean shouldNoOutputRecordsWarn(JobStats jobStats, String jobId) {
         if (0 == jobStats.getRecordWrittern()) {
             log.info("JobStats reports no records have been written");
             /* JobStats is periodically returning zero for the number of records that
@@ -72,12 +79,12 @@ public class JobWarnings {
                Tracking down why/how this is happening has proved difficult, so to 
                prevent false positives we're double checking against a few well known
                counters to confirm that we don't have any record data being written out. */
-            if (0 == numOutputRecordsFromCounters(jobStats, jobId)) {
-                log.info("Counters also report no records written, will warn user");
-                return true;
-            } else {
+            if (countersShowRecordsWritten(jobStats, jobId)) {
                 log.info("Counters found records written, no warning should be sent");
                 return false;
+            } else {
+                log.info("Counters also report no records written, will warn user");
+                return true;
             }
         } else {
             log.info("JobStats reports some records have been written");
@@ -183,6 +190,29 @@ public class JobWarnings {
         return reducerDurations;
     }
 
+    public boolean countersShowRecordsWritten(JobStats jobStats, String jobId) {
+        JobClient jobClient = PigStats.get().getJobClient();
+        Counters counters;
+        try {
+            RunningJob rj = jobClient.getJob(jobId);
+            counters = rj.getCounters();
+        } catch (IOException e) {
+            log.error("Error getting job client, continuing", e);
+            return true;
+        }
+
+        Group fsGroup = counters.getGroup("FileSystemCounters");
+        long hdfsBytes = fsGroup.getCounter("HDFS_BYTES_WRITTEN");
+        long s3Bytes = fsGroup.getCounter("S3N_BYTES_WRITTEN");
+        log.info(String.format("Total of %s bytes were written by this m/r job", (hdfsBytes + s3Bytes)));
+        if ((0 == s3Bytes) && (HDFS_DIRECTORY_SIZE == hdfsBytes)) {
+            log.info("No s3 output and empty HDFS directory created");
+            return false;
+        } else {
+            return (0 < (hdfsBytes + s3Bytes));
+        }
+    }
+
     protected void addWarning(String jobId, Map<String, P2jWarning> warningsMap, String warningKey) {
         Map<String, String> attrs = Maps.newHashMap();
         addWarning(jobId, warningsMap, warningKey, attrs);
@@ -203,7 +233,7 @@ public class JobWarnings {
 
     public Map<String, P2jWarning> findCompletedJobWarnings(JobClient jobClient, JobStats jobStats) {
         Map<String, P2jWarning> warnings = findRunningJobWarnings(jobClient, jobStats.getJobId());
-        if (shouldNoOuputRecordsWarn(jobStats, jobStats.getJobId())) {
+        if (shouldNoOutputRecordsWarn(jobStats, jobStats.getJobId())) {
             addWarning(jobStats, warnings, NO_OUTPUT_RECORDS_KEY);
         }
         return warnings;
