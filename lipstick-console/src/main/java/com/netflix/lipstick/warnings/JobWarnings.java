@@ -45,8 +45,6 @@ public class JobWarnings {
 
     private static final Log log = LogFactory.getLog(JobWarnings.class);
 
-    public final String NO_OUTPUT_RECORDS_KEY = "noOutputRecords";
-
     public static final String NO_OUTPUT_RECORDS_KEY = "noOutputRecords";
     public static final String SKEWED_REDUCERS_KEY = "skewedReducers";
 

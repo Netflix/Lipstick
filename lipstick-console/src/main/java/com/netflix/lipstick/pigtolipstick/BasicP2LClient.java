@@ -431,24 +431,6 @@ public class BasicP2LClient implements P2LClient {
         return null;
     }
 
-    public Map<String, P2jTaskStatus> buildTaskStatusMap(TaskReport[] taskReports) {
-        Map<String, P2jTaskStatus> taskMap = Maps.newHashMap();
-        for (int i = 0; i < taskReports.length; i++) {
-            TaskReport task = taskReports[i];
-            String taskId = task.getTaskID().toString();
-
-            P2jTaskStatus taskStatus = new P2jTaskStatus();
-            taskStatus.setState(task.getState());
-            taskStatus.setProgress(task.getProgress());
-            taskStatus.setStartTime(task.getStartTime());
-            taskStatus.setFinishTime(task.getFinishTime());
-            taskStatus.setTaskId(taskId);
-            taskStatus.setCounters(buildCountersMap(task.getCounters()));
-            taskMap.put(taskId, taskStatus);
-        }
-        return taskMap;
-    }
-
     public Map<String, P2jCounters> buildCountersMap(Counters counters) {
         Map<String, P2jCounters> cMap = Maps.newHashMap();
         for (Group g : counters) {
