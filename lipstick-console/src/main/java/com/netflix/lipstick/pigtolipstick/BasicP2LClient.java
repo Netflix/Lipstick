@@ -444,12 +444,22 @@ public class BasicP2LClient implements P2LClient {
     }
 
     public Map<String, P2jWarning> getCompletedJobWarnings(JobClient jobClient, JobStats jobStats) {
-        JobWarnings jw = new JobWarnings();
-        return jw.findCompletedJobWarnings(jobClient, jobStats);
+        if (context.getExecType() == ExecType.LOCAL) {
+            Map<String, P2jWarning> warnings = Maps.newHashMap();
+            return warnings;
+        } else {
+            JobWarnings jw = new JobWarnings();
+            return jw.findCompletedJobWarnings(jobClient, jobStats);
+        }
     }
 
     public Map<String, P2jWarning> getRunningJobWarnings(JobClient jobClient, JobID jobId) {
-        JobWarnings jw = new JobWarnings();
-        return jw.findRunningJobWarnings(jobClient, jobId.toString());
+        if (context.getExecType() == ExecType.LOCAL) {
+            Map<String, P2jWarning> warnings = Maps.newHashMap();
+            return warnings;
+        } else {
+            JobWarnings jw = new JobWarnings();
+            return jw.findRunningJobWarnings(jobClient, jobId.toString());
+        }
     }
 }
