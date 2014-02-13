@@ -215,6 +215,7 @@ mrJobsTmpl: ' \
 
     jobWarningMessages: {
         noOutputRecords: "Job did not produce any output records",
+        skewedReducers: "Job has <%= data.warningAttributes.numberSkewedReducers %> skewed reducer tasks",
     },
 
 };
