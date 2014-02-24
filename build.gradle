@@ -161,6 +161,7 @@ project(':lipstick-console') {
         configurations.pigInJar.extendsFrom(configurations.includeInJar)
         configurations.hadoopInJar.extendsFrom(configurations.pigInJar)
         configurations.compile.extendsFrom(configurations.includeInJar, configurations.pigInJar, configurations.hadoopInJar)
+        configurations.compile.allDependencies.all { compile it }
     }
 
     test {
