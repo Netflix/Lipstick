@@ -16,6 +16,9 @@
 package com.netflix.lipstick.pigstatus;
 
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.PriorityQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -42,31 +45,68 @@ public class RestfulPigStatusClient implements PigStatusClient {
     private static final Log LOG = LogFactory.getLog(RestfulPigStatusClient.class);
 
     protected ObjectMapper om = new ObjectMapper();
-    protected String serviceUrl = null;
+
+    public static class Server implements Comparable<Server> {
+        public String url;
+        public Long penalty;
+        
+        public Server(String url, Long penalty) {
+            this.url = url;
+            this.penalty = penalty;
+        }
+
+        public void penalize() {
+            this.penalty = penalty*2l; // Double penalty each time
+        }
+
+        public int compareTo(Server other) {
+            return penalty.compareTo(other.penalty);
+        }
+    }
+            
+    protected PriorityQueue<Server> lipstickServers = null;
 
     /**
      * Constructs a default RestfulPigStatusClient.
      */
     public RestfulPigStatusClient() {
     }
-
+    
     /**
-     * Constructs a RestfulPigStatusClient with the given serviceUrl.
+     * Constructs a RestfulPigStatusClient with the given serviceUrls.
      *
-     * @param serviceUrl
+     * @param serviceUrls
      */
-    public RestfulPigStatusClient(String serviceUrl) {
-        LOG.info("Initializing " + this.getClass() + " with serviceUrl: " + serviceUrl);
-        this.serviceUrl = serviceUrl;
+    public RestfulPigStatusClient(String serviceUrls) {
+        LOG.info("Initializing " + this.getClass() + " with serviceUrls: " + serviceUrls);
+        initializeServers(serviceUrls);
+    }
+    
+    protected void initializeServers(String serviceUrls) {
+        String[] urls = serviceUrls.split(",");
+        lipstickServers = new PriorityQueue(urls.length);        
+        for (String url : urls) {
+            lipstickServers.add(new Server(url, 1l));
+        }
     }
 
+    protected void rebuildServers(List<Server> servers) {
+        for (Server s : servers) {
+            lipstickServers.add(s);
+        }        
+    }
+    
+    protected String getServiceUrl() {
+        Server s = lipstickServers.peek();
+        return s.url;
+    }
+    
     @Override
     public String savePlan(P2jPlanPackage plans) {
         plans.getStatus().setHeartbeatTime();
-        String resourceUrl = serviceUrl + "/job/";
-        ClientResponse response = sendRequest(resourceUrl, plans, RequestVerb.POST);
+        ClientResponse response = makeRequest("/job/", plans, RequestVerb.POST);
         if (response == null) {
-	        return null;
+            return null;
         }
 
         try {
@@ -74,6 +114,7 @@ public class RestfulPigStatusClient implements PigStatusClient {
             if (!plans.getUuid().equals(output)) {
                 LOG.error("Incorrect uuid returned from server");
             }
+            String serviceUrl = getServiceUrl();
             LOG.info("This script has been assigned uuid: " + output);
             LOG.info("Navigate to " + serviceUrl + "#job/" + output + " to view progress.");
             return plans.getUuid();
@@ -87,25 +128,54 @@ public class RestfulPigStatusClient implements PigStatusClient {
     @Override
     public void saveStatus(String uuid, P2jPlanStatus status) {
         status.setHeartbeatTime();
-        String resourceUrl = serviceUrl + "/job/" + uuid;
-        sendRequest(resourceUrl, status, RequestVerb.PUT);
+        String resource = "/job/" + uuid;
+        makeRequest(resource, status, RequestVerb.PUT);
+        
+        String serviceUrl = getServiceUrl();
         LOG.info("Navigate to " + serviceUrl + "#job/" + uuid + " to view progress.");
     }
 
     @Override
     public void saveSampleOutput(String uuid, String jobId, P2jSampleOutputList sampleOutputList) {
-        String resourceUrl = String.format("%s/job/%s/sampleOutput/%s", serviceUrl, uuid, jobId);
-        sendRequest(resourceUrl, sampleOutputList, RequestVerb.PUT);
-    }
+        String resource = String.format("/job/%s/sampleOutput/%s", uuid, jobId);
+        makeRequest(resource, sampleOutputList, RequestVerb.PUT);
+    }    
+    
+    protected ClientResponse makeRequest(String resource, Object requestObj, RequestVerb verb) {
+        List<Server> penalized = new ArrayList<Server>();
+        
+        Client client = Client.create();
+        ClientResponse response = null;
 
-    protected ClientResponse sendRequest(String resourceUrl, Object requestObj, RequestVerb verb) {
+        // Go through queue and get servers in increasing order of penalty
+        while (lipstickServers.size() > 0) {
+            String serviceUrl = getServiceUrl();
+            LOG.info("Trying Lipstick server "+serviceUrl);
+            String resourceUrl = serviceUrl + resource;        
+            WebResource webResource = client.resource(resourceUrl);                           
+            response = sendRequest(webResource, requestObj, verb);
+            if (response != null) {
+                rebuildServers(penalized);
+                return response;
+            } else {
+                Server s = lipstickServers.poll();
+                s.penalize();
+                penalized.add(s);
+            }                
+        }
+        rebuildServers(penalized);
+        return null;
+    }
+    
+    protected ClientResponse sendRequest(WebResource webResource, Object requestObj, RequestVerb verb) {
+
+        ClientResponse response = null;
         try {
-            Client client = Client.create();
-            WebResource webResource = client.resource(resourceUrl);
+
+            String resourceUrl = webResource.getURI().toURL().toString();
+            
             LOG.debug("Sending " + verb + " request to " + resourceUrl);
             LOG.debug(om.writeValueAsString(requestObj));
-
-            ClientResponse response = null;
 
             switch (verb) {
             case POST:
@@ -116,7 +186,7 @@ public class RestfulPigStatusClient implements PigStatusClient {
                 response = webResource.type("application/json").put(ClientResponse.class,
                                                                     om.writeValueAsString(requestObj));
                 break;
-            default:
+            default:                
                 throw new RuntimeException("Invalid verb: " + verb + " for resourceUrl: " + resourceUrl);
             }
 
