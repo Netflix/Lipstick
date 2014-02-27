@@ -7,6 +7,7 @@
 	<persistence-unit name="pu">
 		<provider>org.hibernate.ejb.HibernatePersistence</provider>
         <class>com.netflix.lipstick.model.P2jCounters</class>
+        <class>com.netflix.lipstick.model.P2jWarning</class>
         <class>com.netflix.lipstick.model.P2jJobStatus</class>
         <class>com.netflix.lipstick.model.P2jPlan</class>
         <class>com.netflix.lipstick.model.P2jPlanPackage</class>

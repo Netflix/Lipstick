@@ -53,12 +53,14 @@ import com.google.common.collect.Sets;
 import com.netflix.lipstick.MRPlanCalculator;
 import com.netflix.lipstick.P2jPlanGenerator;
 import com.netflix.lipstick.model.P2jCounters;
+import com.netflix.lipstick.model.P2jWarning;
 import com.netflix.lipstick.model.P2jJobStatus;
 import com.netflix.lipstick.model.P2jPlanPackage;
 import com.netflix.lipstick.model.P2jPlanStatus;
 import com.netflix.lipstick.model.P2jPlanStatus.StatusText;
 import com.netflix.lipstick.model.P2jSampleOutput;
 import com.netflix.lipstick.model.P2jSampleOutputList;
+import com.netflix.lipstick.warnings.JobWarnings;
 import com.netflix.lipstick.pigstatus.PigStatusClient;
 import com.netflix.lipstick.pigstatus.RestfulPigStatusClient;
 import com.netflix.lipstick.util.OutputSampler;
@@ -260,7 +262,19 @@ public class BasicP2LClient implements P2LClient {
             jobIdToJobStatusMap.get(jobId).setMapProgress(1);
             jobIdToJobStatusMap.get(jobId).setReduceProgress(1);
         }
+        jobIdToJobStatusMap.get(jobId).setBytesWritten(jobStats.getBytesWritten());
+        jobIdToJobStatusMap.get(jobId).setRecordsWritten(jobStats.getRecordWrittern());
+
         updatePlanStatusForCompletedJobId(planStatus, jobId);
+
+        /* Set the completed job warnings after calling updatePlanStatusForCompletedJobId() otherwise
+           we end up overwriting the warning field with the running job warnings (which are included
+           with the completed job warnings). */
+        JobClient jobClient = PigStats.get().getJobClient();
+        jobIdToJobStatusMap.get(jobId).setWarnings(getCompletedJobWarnings(jobClient, jobStats));
+
+        
+
         psClient.saveStatus(planId, planStatus);
 
         if(enableSampleOutput) {
@@ -396,17 +410,9 @@ public class BasicP2LClient implements P2LClient {
             }
 
             JobID jobID = rj.getID();
-            Counters counters = rj.getCounters();
-            Map<String, P2jCounters> cMap = Maps.newHashMap();
-            for (Group g : counters) {
-                P2jCounters countersObj = new P2jCounters();
-                cMap.put(g.getDisplayName(), countersObj);
-                for (Counter c : g) {
-                    countersObj.getCounters().put(c.getDisplayName(), c.getValue());
-                }
-            }
+            js.setCounters(buildCountersMap(rj.getCounters()));
+            js.setWarnings(getRunningJobWarnings(jobClient, jobID));
 
-            js.setCounters(cMap);
             TaskReport[] mapTaskReport = jobClient.getMapTaskReports(jobID);
             TaskReport[] reduceTaskReport = jobClient.getReduceTaskReports(jobID);
             js.setJobName(rj.getJobName());
@@ -423,5 +429,37 @@ public class BasicP2LClient implements P2LClient {
         }
 
         return null;
+    }
+
+    public Map<String, P2jCounters> buildCountersMap(Counters counters) {
+        Map<String, P2jCounters> cMap = Maps.newHashMap();
+        for (Group g : counters) {
+            P2jCounters countersObj = new P2jCounters();
+            cMap.put(g.getDisplayName(), countersObj);
+            for (Counter c : g) {
+                countersObj.getCounters().put(c.getDisplayName(), c.getValue());
+            }
+        }
+        return cMap;
+    }
+
+    public Map<String, P2jWarning> getCompletedJobWarnings(JobClient jobClient, JobStats jobStats) {
+        if (context.getExecType() == ExecType.LOCAL) {
+            Map<String, P2jWarning> warnings = Maps.newHashMap();
+            return warnings;
+        } else {
+            JobWarnings jw = new JobWarnings();
+            return jw.findCompletedJobWarnings(jobClient, jobStats);
+        }
+    }
+
+    public Map<String, P2jWarning> getRunningJobWarnings(JobClient jobClient, JobID jobId) {
+        if (context.getExecType() == ExecType.LOCAL) {
+            Map<String, P2jWarning> warnings = Maps.newHashMap();
+            return warnings;
+        } else {
+            JobWarnings jw = new JobWarnings();
+            return jw.findRunningJobWarnings(jobClient, jobId.toString());
+        }
     }
 }
