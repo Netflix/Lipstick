@@ -130,16 +130,16 @@ public class LipstickPigServer extends PigServer {
      * for the LipstickPPNL(s).
      */
     @Override
-    protected PigStats launchPlan(PhysicalPlan pp, String jobName) throws ExecException, FrontendException {
+    protected PigStats launchPlan(LogicalPlan lp, String jobName) throws ExecException, FrontendException {
         if (ppnl != null) {
             try {
-                optimizedPlanGenerator = new P2jPlanGenerator(getCurrDAG().getPlan(null));
+                optimizedPlanGenerator = new P2jPlanGenerator(lp);
                 ppnl.setPlanGenerators(unoptimizedPlanGenerator, optimizedPlanGenerator);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        return super.launchPlan(pp, jobName);
+        return super.launchPlan(lp, jobName);
     }
 
     /**

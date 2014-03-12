@@ -6,6 +6,7 @@ ext.githubProjectName = "Lipstick"
 buildscript {
     repositories {
         mavenCentral()
+        mavenLocal()
     }
 
     dependencies {
@@ -20,6 +21,7 @@ buildscript {
 allprojects {
     repositories {
         mavenCentral()
+        mavenLocal()
     }
     group = 'com.netflix.lipstick'
 }
@@ -138,7 +140,7 @@ project(':lipstick-console') {
          includeInJar('org.antlr:antlr-runtime:3.4')
          includeInJar('org.apache.commons:commons-math3:3.0')
 
-         pigInJar('org.apache.pig:pig:0.11.1') {
+         pigInJar('org.apache.pig:pig:0.13.0-nflx-v0') {
                 exclude module: 'hsqld'
                 exclude module: 'jetty'
                 exclude module: 'jsp-api-2.1'

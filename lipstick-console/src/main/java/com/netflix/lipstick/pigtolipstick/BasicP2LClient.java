@@ -38,6 +38,7 @@ import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.pig.ExecType;
 import org.apache.pig.LipstickPigServer;
+import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
@@ -45,7 +46,7 @@ import org.apache.pig.impl.PigContext;
 import org.apache.pig.newplan.Operator;
 import org.apache.pig.tools.pigstats.JobStats;
 import org.apache.pig.tools.pigstats.PigStats;
-import org.apache.pig.tools.pigstats.ScriptState;
+import org.apache.pig.tools.pigstats.mapreduce.MRScriptState;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -138,13 +139,13 @@ public class BasicP2LClient implements P2LClient {
             for (MapReduceOper job : plan) {
                 if (conf == null) {
                     conf = new Configuration();
-                    ScriptState.get().addSettingsToConf(job, conf);
+                    MRScriptState.get().addSettingsToConf(job, conf);
                     break;
                 }
             }
             try {
                 Map<PhysicalOperator, Operator> p2lMap = Maps.newHashMap();
-                Map<Operator, PhysicalOperator> l2pMap = context.getExecutionEngine().getLogToPhyMap();
+                Map<Operator, PhysicalOperator> l2pMap = ((HExecutionEngine)context.getExecutionEngine()).getLogToPhyMap();
                 for (Entry<Operator, PhysicalOperator> i : l2pMap.entrySet()) {
                     p2lMap.put(i.getValue(), i.getKey());
                 }
