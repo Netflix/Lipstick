@@ -16,12 +16,12 @@
 package org.apache.pig;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.pig.backend.executionengine.ExecException;
+import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
@@ -133,27 +133,19 @@ public class LipstickPigServer extends PigServer {
     protected PigStats launchPlan(LogicalPlan lp, String jobName) throws ExecException, FrontendException {
         if (ppnl != null) {
             try {
+                // Get preoptimized plan
+                unoptimizedPlanGenerator = new P2jPlanGenerator(lp);
+
+                // Get optimized plan by compiling it with the appropriate execution engine
+                ((HExecutionEngine)getPigContext().getExecutionEngine()).compile(lp, getPigContext().getProperties());
                 optimizedPlanGenerator = new P2jPlanGenerator(lp);
+                
                 ppnl.setPlanGenerators(unoptimizedPlanGenerator, optimizedPlanGenerator);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
         return super.launchPlan(lp, jobName);
-    }
-
-    /**
-     * Uses reflection to get the current Graph.
-     * @return
-     */
-    protected Graph getCurrDAG() {
-        try {
-            Field f = this.getClass().getSuperclass().getDeclaredField("currDAG");
-            f.setAccessible(true);
-            return (Graph) f.get(this);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     /**
@@ -164,19 +156,10 @@ public class LipstickPigServer extends PigServer {
      * @throws IOException
      */
     public LogicalPlan getLP(String alias) throws IOException {
-        return getCurrDAG().getPlan(alias);
+        return getCurrentDAG().getPlan(alias);
     }
 
     public List<String> getScriptCache() {
-        return getCurrDAG().getScriptCache();
-    }
-
-    /**
-     * Registers the given query and constructs an unoptimized plan generator.
-     */
-    @Override
-    public void registerQuery(String query, int startLine) throws IOException {
-        super.registerQuery(query, startLine);
-        unoptimizedPlanGenerator = new P2jPlanGenerator(getCurrDAG().getPlan(null));
+        return getCurrentDAG().getScriptCache();
     }
 }

@@ -329,7 +329,7 @@ public class P2jLogicalRelationalOperator {
         } else {
             setSchema(null);
         }
-        this.schemaString = schemaString;
+        this.schemaString = schemaString.replace(".", "_");
     }
 
     public void setSuccessors(List<String> successors) {
