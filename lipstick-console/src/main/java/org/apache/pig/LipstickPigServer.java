@@ -36,6 +36,9 @@ import org.apache.pig.tools.pigstats.ScriptState;
 import com.netflix.lipstick.P2jPlanGenerator;
 import com.netflix.lipstick.listeners.LipstickPPNL;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 /**
  * PigServer with extensions to support additional notifications to LipstickPPNL.
  *
@@ -52,7 +55,8 @@ public class LipstickPigServer extends PigServer {
     protected LipstickPPNL ppnl = null;
     protected P2jPlanGenerator optimizedPlanGenerator;
     protected P2jPlanGenerator unoptimizedPlanGenerator;
-
+    private static final Log LOG = LogFactory.getLog(LipstickPigServer.class);
+    
     /**
      * Constructs a LipstickPigServer with the given execType and properties.
      * Initializes any LipstickPPNLs that the ScriptState is aware of.
@@ -137,8 +141,10 @@ public class LipstickPigServer extends PigServer {
                 unoptimizedPlanGenerator = new P2jPlanGenerator(lp);
 
                 // Get optimized plan by compiling it with the appropriate execution engine
+                LOG.info("Compiling and optimizing logical plan...");
                 ((HExecutionEngine)getPigContext().getExecutionEngine()).compile(lp, getPigContext().getProperties());
                 optimizedPlanGenerator = new P2jPlanGenerator(lp);
+                LOG.info("Finished compiling and optimizing logical plan");
                 
                 ppnl.setPlanGenerators(unoptimizedPlanGenerator, optimizedPlanGenerator);
             } catch (IOException e) {
