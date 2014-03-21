@@ -463,4 +463,16 @@ public class BasicP2LClient implements P2LClient {
             return jw.findRunningJobWarnings(jobClient, jobId.toString());
         }
     }
+
+    public boolean isLocalMode() {
+        if (context.getExecType() == ExecType.LOCAL) {
+            return true;
+        } else {
+            String convertedLocal = context.getProperties().getProperty("pig.job.converted.local");
+            if (convertedLocal != null && convertedLocal.equals("true")) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
