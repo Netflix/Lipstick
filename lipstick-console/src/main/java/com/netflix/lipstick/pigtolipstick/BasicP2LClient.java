@@ -151,7 +151,7 @@ public class BasicP2LClient implements P2LClient {
                 }
 
                 String script = null;
-
+                
                 // suppress getting script from conf for now - do something smarter later
                 if (conf != null && false) {
                     script = new String(Base64.decodeBase64(conf.get("pig.script")));
@@ -259,7 +259,7 @@ public class BasicP2LClient implements P2LClient {
         // Update the status of this job
         P2jPlanStatus planStatus = new P2jPlanStatus();
         jobIdToJobStatusMap.get(jobId).setFinishTime(System.currentTimeMillis());
-        if (context.getExecType() == ExecType.LOCAL) {
+        if (isLocalMode()) {
             jobIdToJobStatusMap.get(jobId).setMapProgress(1);
             jobIdToJobStatusMap.get(jobId).setReduceProgress(1);
         }
@@ -445,7 +445,7 @@ public class BasicP2LClient implements P2LClient {
     }
 
     public Map<String, P2jWarning> getCompletedJobWarnings(JobClient jobClient, JobStats jobStats) {
-        if (context.getExecType() == ExecType.LOCAL) {
+        if (isLocalMode()) {
             Map<String, P2jWarning> warnings = Maps.newHashMap();
             return warnings;
         } else {
@@ -455,7 +455,7 @@ public class BasicP2LClient implements P2LClient {
     }
 
     public Map<String, P2jWarning> getRunningJobWarnings(JobClient jobClient, JobID jobId) {
-        if (context.getExecType() == ExecType.LOCAL) {
+        if (isLocalMode()) {
             Map<String, P2jWarning> warnings = Maps.newHashMap();
             return warnings;
         } else {
@@ -467,7 +467,7 @@ public class BasicP2LClient implements P2LClient {
     public boolean isLocalMode() {
         if (context.getExecType() == ExecType.LOCAL) {
             return true;
-        } else {
+        } else {            
             String convertedLocal = context.getProperties().getProperty("pig.job.converted.local");
             if (convertedLocal != null && convertedLocal.equals("true")) {
                 return true;
