@@ -47,6 +47,7 @@ import org.apache.pig.newplan.Operator;
 import org.apache.pig.tools.pigstats.JobStats;
 import org.apache.pig.tools.pigstats.PigStats;
 import org.apache.pig.tools.pigstats.mapreduce.MRScriptState;
+import org.apache.pig.impl.PigImplConstants;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -87,7 +88,8 @@ public class BasicP2LClient implements P2LClient {
     protected PigContext context;
     protected final Set<String> runningJobIds = Sets.newHashSet();
     protected final Map<String, P2jJobStatus> jobIdToJobStatusMap = Maps.newHashMap();
-
+    protected final Map<String, Boolean> jobModeMap = Maps.newHashMap();
+    
     protected final PigStatusClient psClient;
     protected boolean invalidClient = false;
     protected boolean enableSampleOutput = true;
@@ -228,7 +230,7 @@ public class BasicP2LClient implements P2LClient {
         // for each job in the graph, check if the stats for a job with this
         // name is found. If so, look up it's scope and bind the jobId to
         // the DAGNode with the same scope.
-        for (JobStats jobStats : jobGraph) {
+        for (JobStats jobStats : jobGraph) {            
             if (jobId.equals(jobStats.getJobId())) {
                 LOG.info("jobStartedNotification - scope " + jobStats.getName() + " is jobId " + jobId);
                 P2jJobStatus jobStatus = new P2jJobStatus();
@@ -237,6 +239,19 @@ public class BasicP2LClient implements P2LClient {
                 jobStatus.setScope(jobStats.getName());
                 jobIdToJobStatusMap.put(jobId, jobStatus);
                 runningJobIds.add(jobId);
+
+                //
+                // Hack to get the configuration associated with the job to know
+                // whether it's been converted to local mode or not
+                //
+                try {
+                    java.lang.reflect.Field f = jobStats.getClass().getSuperclass().getDeclaredField("conf");
+                    f.setAccessible(true);
+                    Configuration c = (Configuration)f.get(jobStats);
+                    jobModeMap.put(jobId, c.getBoolean(PigImplConstants.CONVERTED_TO_LOCAL, false));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
         P2jPlanStatus planStatus = new P2jPlanStatus();
@@ -257,9 +272,10 @@ public class BasicP2LClient implements P2LClient {
         }
 
         // Update the status of this job
+        JobClient jobClient = PigStats.get().getJobClient();
         P2jPlanStatus planStatus = new P2jPlanStatus();
         jobIdToJobStatusMap.get(jobId).setFinishTime(System.currentTimeMillis());
-        if (isLocalMode()) {
+        if (isLocalMode(jobId)) {
             jobIdToJobStatusMap.get(jobId).setMapProgress(1);
             jobIdToJobStatusMap.get(jobId).setReduceProgress(1);
         }
@@ -270,11 +286,8 @@ public class BasicP2LClient implements P2LClient {
 
         /* Set the completed job warnings after calling updatePlanStatusForCompletedJobId() otherwise
            we end up overwriting the warning field with the running job warnings (which are included
-           with the completed job warnings). */
-        JobClient jobClient = PigStats.get().getJobClient();
+           with the completed job warnings). */        
         jobIdToJobStatusMap.get(jobId).setWarnings(getCompletedJobWarnings(jobClient, jobStats));
-
-        
 
         psClient.saveStatus(planId, planStatus);
 
@@ -445,7 +458,7 @@ public class BasicP2LClient implements P2LClient {
     }
 
     public Map<String, P2jWarning> getCompletedJobWarnings(JobClient jobClient, JobStats jobStats) {
-        if (isLocalMode()) {
+        if (isLocalMode(jobStats.getJobId())) {
             Map<String, P2jWarning> warnings = Maps.newHashMap();
             return warnings;
         } else {
@@ -455,7 +468,7 @@ public class BasicP2LClient implements P2LClient {
     }
 
     public Map<String, P2jWarning> getRunningJobWarnings(JobClient jobClient, JobID jobId) {
-        if (isLocalMode()) {
+        if (isLocalMode(jobId.toString())) {
             Map<String, P2jWarning> warnings = Maps.newHashMap();
             return warnings;
         } else {
@@ -464,15 +477,9 @@ public class BasicP2LClient implements P2LClient {
         }
     }
 
-    public boolean isLocalMode() {
-        if (context.getExecType() == ExecType.LOCAL) {
-            return true;
-        } else {            
-            String convertedLocal = context.getProperties().getProperty("pig.job.converted.local");
-            if (convertedLocal != null && convertedLocal.equals("true")) {
-                return true;
-            }
-        }
-        return false;
+    public boolean isLocalMode(String jobId) {
+        return (context.getExecType() == ExecType.LOCAL ||
+                jobModeMap.get(jobId)
+                );
     }
 }
