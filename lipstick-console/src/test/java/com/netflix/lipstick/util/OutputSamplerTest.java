@@ -32,6 +32,7 @@ import org.apache.pig.impl.io.InterStorage;
 import org.apache.pig.impl.io.InterStorage.InterInputFormat;
 import org.apache.pig.impl.logicalLayer.schema.Schema;
 import org.apache.pig.tools.pigstats.JobStats;
+import org.apache.pig.tools.pigstats.mapreduce.MRJobStats;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -134,7 +135,7 @@ public class OutputSamplerTest {
 
     private JobStats getJobStats() throws InstantiationException, IllegalAccessException, IllegalArgumentException,
             InvocationTargetException {
-        Constructor<?> ctor = JobStats.class.getDeclaredConstructors()[0];
+        Constructor<?> ctor = MRJobStats.class.getDeclaredConstructors()[0];
         ctor.setAccessible(true);
         return (JobStats) ctor.newInstance(null, null);
     }
