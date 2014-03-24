@@ -36,7 +36,6 @@ import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.pig.ExecType;
 import org.apache.pig.LipstickPigServer;
 import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
@@ -425,7 +424,7 @@ public class BasicP2LClient implements P2LClient {
 
             JobID jobID = rj.getID();
             js.setCounters(buildCountersMap(rj.getCounters()));
-            js.setWarnings(getRunningJobWarnings(jobClient, jobID));
+            js.setWarnings(getRunningJobWarnings(jobClient, jobID.toString()));
 
             TaskReport[] mapTaskReport = jobClient.getMapTaskReports(jobID);
             TaskReport[] reduceTaskReport = jobClient.getReduceTaskReports(jobID);
@@ -467,13 +466,14 @@ public class BasicP2LClient implements P2LClient {
         }
     }
 
-    public Map<String, P2jWarning> getRunningJobWarnings(JobClient jobClient, JobID jobId) {
-        if (isLocalMode(jobId.toString())) {
+
+    public Map<String, P2jWarning> getRunningJobWarnings(JobClient jobClient, String jobId) {
+        if (isLocalMode(jobId)) {
             Map<String, P2jWarning> warnings = Maps.newHashMap();
             return warnings;
         } else {
             JobWarnings jw = new JobWarnings();
-            return jw.findRunningJobWarnings(jobClient, jobId.toString());
+            return jw.findRunningJobWarnings(jobClient, jobId);
         }
     }
 
