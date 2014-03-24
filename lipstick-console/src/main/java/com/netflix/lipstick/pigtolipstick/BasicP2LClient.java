@@ -478,7 +478,7 @@ public class BasicP2LClient implements P2LClient {
     }
 
     public boolean isLocalMode(String jobId) {
-        return (context.getExecType() == ExecType.LOCAL ||
+        return (context.getExecType() == org.apache.pig.ExecType.LOCAL ||
                 jobModeMap.get(jobId)
                 );
     }
