@@ -365,8 +365,6 @@ public class BasicP2LClient implements P2LClient {
             List<TaskReport> reports = Lists.newArrayList();
             reports.addAll(Arrays.asList(jobClient.getMapTaskReports(jobID)));
             reports.addAll(Arrays.asList(jobClient.getReduceTaskReports(jobID)));
-            reports.addAll(Arrays.asList(jobClient.getCleanupTaskReports(jobID)));
-            reports.addAll(Arrays.asList(jobClient.getSetupTaskReports(jobID)));
             for(TaskReport rpt : reports) {
                 /* rpt.getStartTime() sometimes returns zero meaning it does
                    not know what time it started so we need to prevent using
