@@ -92,7 +92,7 @@ project(':lipstick-server') {
             fileset(dir: file('lipstick-server/lib'), includes: '*.jar')
         }
     }
-    task('import-jar', type:Copy, dependsOn: [':lipstick-console:jar','clean-lib']) {
+    task('import-jar', type:Copy, dependsOn: [':lipstick-console:hadoopJar','clean-lib']) {
         from ('../lipstick-console/build/libs') {
             include '*withHadoop.jar'
         }
