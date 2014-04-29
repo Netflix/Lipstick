@@ -22,8 +22,9 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
-import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
+
+import org.apache.pig.backend.hadoop.executionengine.tez.TezOperator;
+import org.apache.pig.backend.hadoop.executionengine.tez.TezOperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator.OriginalLocation;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
@@ -43,66 +44,33 @@ import com.netflix.lipstick.model.P2jPlan;
 import com.netflix.lipstick.model.operators.P2jLOStore;
 import com.netflix.lipstick.model.operators.P2jLogicalRelationalOperator;
 
-/**
- *
- * Assigns map/reduce stages to all operators in a p2jPlan.
- *
- * @author jmagnusson
- *
- */
-public class MRPlanCalculator {
-    private static final Log LOG = LogFactory.getLog(MRPlanCalculator.class);
+public class TezPlanCalculator {
+    private static final Log LOG = LogFactory.getLog(TezPlanCalculator.class);
 
-    protected MROperPlan mrp;
+    protected TezOperPlan tp;
+    protected P2jPlan p2jPlan;
     protected Map<PhysicalOperator, Operator> phy2LogMap;
     protected Map<String, P2jLogicalRelationalOperator> p2jMap;
-    protected P2jPlan p2jPlan;
     protected Map<Operator, String> reverseMap;
     protected Map<String, Operator> locationMap;
-
-    /**
-     * Possible map/reduce job phases.
-     *
-     */
-    public static enum MRStepType {
-        MAPPER, REDUCER, COMBINER, UNKNOWN
-    }
-
-    /**
-     * Instantiates a new map/reduce plan calculator. Assigns map/reduce plans
-     * to p2jPlan.
-     *
-     * @param p2jPlan
-     *            the P2jPlan
-     * @param mrp
-     *            the MROperPlan
-     * @param phy2LogMap
-     *            physical to logical operator map
-     * @param reverseMap
-     *            reverse map of logical operator to operator uid
-     */
-    public MRPlanCalculator(P2jPlan p2jPlan,
-                            MROperPlan mrp,
+    
+    public TezPlanCalculator(P2jPlan p2jPlan,
+                            TezOperPlan tp,
                             Map<PhysicalOperator, Operator> phy2LogMap,
                             Map<Operator, String> reverseMap) {
-        this.mrp = mrp;
+        this.tp = tp;
         this.phy2LogMap = phy2LogMap;
         this.p2jMap = p2jPlan.getPlan();
         this.p2jPlan = p2jPlan;
         this.reverseMap = reverseMap;
         this.locationMap = generateLocationMap();
-        p2jPlan.setPlan(assignMRStagesToNodes());
+        p2jPlan.setPlan(assignVerticesToNodes());
     }
 
-    /**
-     * Get the P2jPlan with map/reduce jobs assigned.
-     *
-     * @return p2jPlan with map/reduce jobs assigned
-     */
     public P2jPlan getP2jPlan() {
         return p2jPlan;
     }
-
+    
     /**
      * Generate a map of pig script code location to logical operators.
      *
@@ -121,35 +89,22 @@ public class MRPlanCalculator {
         return locationMap;
     }
 
-    /**
-     * Assign map/reduce jobs to P2jLogicalRelationalOperators, first by
-     * iterating through the MROperPlan and mapping physical operators to
-     * P2jLogicalRelationalOperators. Finally assign operators that could not be
-     * mapped by using information from the unassigned operators successors and
-     * predecessors via assignMRStagesToUnknownNodes.
-     *
-     * @return the p2jMap with map/reduce jobs assigned to all nodes
-     */
-    protected Map<String, P2jLogicalRelationalOperator> assignMRStagesToNodes() {
-        for (MapReduceOper job : mrp) {
+    protected Map<String, P2jLogicalRelationalOperator> assignVerticesToNodes() {
+        for (TezOperator job : tp) {
             String jid = job.getOperatorKey().toString();
-            assignMRStagesToPlan(job.mapPlan, jid, MRStepType.MAPPER);
-            assignMRStagesToPlan(job.reducePlan, jid, MRStepType.REDUCER);
-            assignMRStagesToPlan(job.combinePlan, jid, MRStepType.COMBINER);
+            assignVerticesToPlan(job.plan, jid);
         }
-        // assign to the operators that were not assigned previously
-        assignMRStagesToUnknownNodes();
+
+        assignVerticesToUnknownNodes();
         return p2jMap;
     }
 
-    /**
-     * Return the P2jLogicalRelationalOperator associated with a physical store
-     * operator.
-     *
-     * @param pop
-     *            the physical store operator
-     * @return the P2jLogicalRelationalOperator associated with pop
-     */
+    protected void assignVerticesToPlan(PhysicalPlan pp, String jid) {
+        for (PhysicalOperator pop : pp) {
+            assignVertex(pop, jid);
+        }
+    }
+
     protected P2jLogicalRelationalOperator getOpForStore(POStore pop) {
         FileSpec pofs = pop.getSFile();
         for (Entry<String, P2jLogicalRelationalOperator> entry : p2jMap.entrySet()) {
@@ -163,61 +118,32 @@ public class MRPlanCalculator {
         }
         return null;
     }
-
-    /**
-     * Assign map/reduce job and step to logical operators identifiable through
-     * a physical plan.
-     *
-     * @param pp
-     *            the PhysicalPlan
-     * @param jid
-     *            a string representing the M/R job id of the plan
-     * @param stepType
-     *            map/reduce phase for the physical plan
-     */
-    protected void assignMRStagesToPlan(PhysicalPlan pp, String jid, MRStepType stepType) {
-        for (PhysicalOperator pop : pp) {
-            assignMRStage(pop, jid, stepType);
-        }
-    }
-
-    /**
-     * Given a physical operator, attempts to map it to a logical operator. If a
-     * suitable mapping can be found, assign map reduce phase "jid, stepType" to
-     * the logical operator.
-     *
-     * @param pop
-     *            the physical operator
-     * @param jid
-     *            the map/reduce job id
-     * @param stepType
-     *            the map/reduce step (MAPPER, REDUCER, COMBINER, UNKNOWN)
-     */
-    protected void assignMRStage(PhysicalOperator pop, String jid, MRStepType stepType) {
+    
+    protected void assignVertex(PhysicalOperator pop, String jid) {
 
         // special cases - find other operators inside these that need to be
         // assigned
        
         if (pop instanceof POLocalRearrange) {
             for (PhysicalPlan ipl : ((POLocalRearrange) pop).getPlans()) {
-                assignMRStagesToPlan(ipl, jid, stepType);
+                assignVerticesToPlan(ipl, jid);
             }
         } else if (pop instanceof PODemux) {
             for (PhysicalPlan ipl : ((PODemux) pop).getPlans()) {
-                assignMRStagesToPlan(ipl, jid, stepType);
+                assignVerticesToPlan(ipl, jid);
             }
         } else if (pop instanceof POPreCombinerLocalRearrange) {
             for (PhysicalPlan ipl : ((POPreCombinerLocalRearrange) pop).getPlans()) {
-                assignMRStagesToPlan(ipl, jid, stepType);
+                assignVerticesToPlan(ipl, jid);
             }       
         } else if (pop instanceof POSplit) {
             for (PhysicalPlan ipl : ((POSplit) pop).getPlans()) {
-                assignMRStagesToPlan(ipl, jid, stepType);
+                assignVerticesToPlan(ipl, jid);
             }
         }
 
-        String stepTypeString = stepType.toString();
-
+        String stepTypeString = "TezVertex";
+        
         if (pop instanceof POStore) {
             P2jLogicalRelationalOperator node = getOpForStore((POStore) pop);
             if (node != null) {
@@ -238,11 +164,7 @@ public class MRPlanCalculator {
                 if (locationMap.containsKey(loc.toString())) {
                     P2jLogicalRelationalOperator node = p2jMap.get(reverseMap.get(locationMap.get(loc.toString())));
                     LOG.debug("Found location... " + node);
-                    if (node.getMapReduce() == null) {
-                        if (node.getOperator().equalsIgnoreCase("LOJoin")
-                            || node.getOperator().equalsIgnoreCase("LOGroup")) {
-                            stepTypeString = MRStepType.REDUCER.toString();
-                        }
+                    if (node.getMapReduce() == null) {                        
                         node.setMapReduce(jid, stepTypeString);
                         didAssign = true;
                         LOG.debug("Assign location... " + node);
@@ -256,31 +178,17 @@ public class MRPlanCalculator {
         LOG.debug("*** Couldn't assign " + pop.getClass() + pop);
     }
 
-    /**
-     * Assign map/reduce jobs to previously unassigned
-     * P2jLogicalRelationalOperators in the plan, using information from the
-     * operator's successors and predecessors.
-     */
-    protected void assignMRStagesToUnknownNodes() {
+    protected void assignVerticesToUnknownNodes() {
         for (P2jLogicalRelationalOperator node : p2jMap.values()) {
             if (node.getMapReduce() == null || node.getMapReduce().getJobId() == null) {
                 String jobId = resolveJobForNode(node);
                 if (jobId != null) {
-                    node.setMapReduce(jobId, MRStepType.UNKNOWN.toString());
+                    node.setMapReduce(jobId, "TezVertex");
                 }
             }
         }
     }
 
-    /**
-     * Attempts to determine a map/reduce job that is responsible for a
-     * P2jLogicalOperator, via the job information from the operator's
-     * predecessors and successors.
-     *
-     * @param node
-     *            the P2jLogicalRelationalOperator
-     * @return a String representing the map/reduce job id
-     */
     protected String resolveJobForNode(P2jLogicalRelationalOperator node) {
         Set<String> pred = generateScopesForNode(node, new ScopeGetter() {
             @Override
@@ -333,5 +241,4 @@ public class MRPlanCalculator {
         }
         return scopes;
     }
-
 }

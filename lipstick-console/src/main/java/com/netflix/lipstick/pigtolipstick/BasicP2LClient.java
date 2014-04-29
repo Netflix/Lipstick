@@ -36,8 +36,12 @@ import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.pig.ExecType;
 import org.apache.pig.LipstickPigServer;
+import org.apache.pig.impl.plan.OperatorPlan;
 import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
+import org.apache.pig.backend.hadoop.executionengine.tez.TezOperator;
+import org.apache.pig.backend.hadoop.executionengine.tez.TezOperPlan;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
@@ -45,14 +49,16 @@ import org.apache.pig.impl.PigContext;
 import org.apache.pig.newplan.Operator;
 import org.apache.pig.tools.pigstats.JobStats;
 import org.apache.pig.tools.pigstats.PigStats;
+import org.apache.pig.tools.pigstats.tez.TezScriptState;
 import org.apache.pig.tools.pigstats.mapreduce.MRScriptState;
 import org.apache.pig.impl.PigImplConstants;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.netflix.lipstick.MRPlanCalculator;
 import com.netflix.lipstick.P2jPlanGenerator;
+import com.netflix.lipstick.MRPlanCalculator;
+import com.netflix.lipstick.TezPlanCalculator;
 import com.netflix.lipstick.model.P2jCounters;
 import com.netflix.lipstick.model.P2jWarning;
 import com.netflix.lipstick.model.P2jJobStatus;
@@ -134,16 +140,26 @@ public class BasicP2LClient implements P2LClient {
 
     @Override
     @SuppressWarnings("unused")
-    public void createPlan(MROperPlan plan) {
+    public void createPlan(OperatorPlan<?> plan) {
         if (plan != null && unopPlanGenerator != null && opPlanGenerator != null && context != null) {
             Configuration conf = null;
-            for (MapReduceOper job : plan) {
+
+            // FIXME: Rather than reflection, use ExecType
+            for (org.apache.pig.impl.plan.Operator job : plan) {
                 if (conf == null) {
                     conf = new Configuration();
-                    MRScriptState.get().addSettingsToConf(job, conf);
+                    
+                    // Decide which scriptstate to add to.
+                    // FIXME: This functionality needs to be added to ScriptState proper?
+                    if (job instanceof TezOperator) {
+                        TezScriptState.get().addSettingsToConf((TezOperator)job, conf);
+                    } else if (job instanceof MapReduceOper) {
+                        MRScriptState.get().addSettingsToConf((MapReduceOper)job, conf);
+                    }
                     break;
                 }
             }
+            
             try {
                 Map<PhysicalOperator, Operator> p2lMap = Maps.newHashMap();
                 Map<Operator, PhysicalOperator> l2pMap = ((HExecutionEngine)context.getExecutionEngine()).getLogToPhyMap();
@@ -161,11 +177,17 @@ public class BasicP2LClient implements P2LClient {
                     script = StringUtils.join(ps.getScriptCache(), '\n');
                 }
 
-                MRPlanCalculator opPlan = new MRPlanCalculator(opPlanGenerator.getP2jPlan(), plan, p2lMap, opPlanGenerator.getReverseMap());
-                MRPlanCalculator unopPlan = new MRPlanCalculator(unopPlanGenerator.getP2jPlan(), plan, p2lMap, unopPlanGenerator.getReverseMap());
-
-                P2jPlanPackage plans = new P2jPlanPackage(opPlan.getP2jPlan(), unopPlan.getP2jPlan(), script, planId);
-
+                P2jPlanPackage plans = null;
+                if (context.getExecType().name().toLowerCase().startsWith("tez")) {
+                    TezPlanCalculator opPlan = new TezPlanCalculator(opPlanGenerator.getP2jPlan(), (TezOperPlan)plan, p2lMap, opPlanGenerator.getReverseMap());
+                    TezPlanCalculator unopPlan = new TezPlanCalculator(unopPlanGenerator.getP2jPlan(), (TezOperPlan)plan, p2lMap, unopPlanGenerator.getReverseMap());
+                    plans = new P2jPlanPackage(opPlan.getP2jPlan(), unopPlan.getP2jPlan(), script, planId);
+                } else {
+                    MRPlanCalculator opPlan = new MRPlanCalculator(opPlanGenerator.getP2jPlan(), (MROperPlan)plan, p2lMap, opPlanGenerator.getReverseMap());
+                    MRPlanCalculator unopPlan = new MRPlanCalculator(unopPlanGenerator.getP2jPlan(), (MROperPlan)plan, p2lMap, unopPlanGenerator.getReverseMap());
+                    plans = new P2jPlanPackage(opPlan.getP2jPlan(), unopPlan.getP2jPlan(), script, planId);
+                }
+                                                   
                 Properties props = context.getProperties();
                 plans.setUserName(UserGroupInformation.getCurrentUser().getUserName());
                 if (props.containsKey(JOB_NAME_PROP)) {
