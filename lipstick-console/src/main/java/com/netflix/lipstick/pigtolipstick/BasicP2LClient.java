@@ -36,12 +36,16 @@ import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
 import org.apache.pig.ExecType;
 import org.apache.pig.LipstickPigServer;
 import org.apache.pig.impl.plan.OperatorPlan;
 import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
+import org.apache.pig.tools.pigstats.tez.TezStats;
+import org.apache.pig.backend.hadoop.executionengine.tez.TezJob;
 import org.apache.pig.backend.hadoop.executionengine.tez.TezOperator;
 import org.apache.pig.backend.hadoop.executionengine.tez.TezOperPlan;
+import org.apache.pig.backend.hadoop.executionengine.tez.TezJobControl;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
@@ -99,6 +103,8 @@ public class BasicP2LClient implements P2LClient {
     protected boolean invalidClient = false;
     protected boolean enableSampleOutput = true;
 
+    protected String exectype;
+    
     /**
      * Instantiates a new BasicP2LClient using RestfulPigStatusClient with serviceUrl.
      *
@@ -126,6 +132,7 @@ public class BasicP2LClient implements P2LClient {
     @Override
     public void setPigContext(PigContext context) {
         this.context = context;
+        this.exectype = context.getExecType().name().toLowerCase();
     }
 
     @Override
@@ -144,16 +151,15 @@ public class BasicP2LClient implements P2LClient {
         if (plan != null && unopPlanGenerator != null && opPlanGenerator != null && context != null) {
             Configuration conf = null;
 
-            // FIXME: Rather than reflection, use ExecType
             for (org.apache.pig.impl.plan.Operator job : plan) {
                 if (conf == null) {
                     conf = new Configuration();
                     
                     // Decide which scriptstate to add to.
                     // FIXME: This functionality needs to be added to ScriptState proper?
-                    if (job instanceof TezOperator) {
+                    if (exectype.startsWith("tez")) {
                         TezScriptState.get().addSettingsToConf((TezOperator)job, conf);
-                    } else if (job instanceof MapReduceOper) {
+                    } else {
                         MRScriptState.get().addSettingsToConf((MapReduceOper)job, conf);
                     }
                     break;
@@ -178,7 +184,7 @@ public class BasicP2LClient implements P2LClient {
                 }
 
                 P2jPlanPackage plans = null;
-                if (context.getExecType().name().toLowerCase().startsWith("tez")) {
+                if (exectype.startsWith("tez")) {
                     TezPlanCalculator opPlan = new TezPlanCalculator(opPlanGenerator.getP2jPlan(), (TezOperPlan)plan, p2lMap, opPlanGenerator.getReverseMap());
                     TezPlanCalculator unopPlan = new TezPlanCalculator(unopPlanGenerator.getP2jPlan(), (TezOperPlan)plan, p2lMap, unopPlanGenerator.getReverseMap());
                     plans = new P2jPlanPackage(opPlan.getP2jPlan(), unopPlan.getP2jPlan(), script, planId);
@@ -290,9 +296,9 @@ public class BasicP2LClient implements P2LClient {
         if (!runningJobIds.remove(jobId)) {
             LOG.error("Internal Error.  Job finished with no record of running jobId: " + jobId);
         }
+        
 
         // Update the status of this job
-        JobClient jobClient = PigStats.get().getJobClient();
         P2jPlanStatus planStatus = new P2jPlanStatus();
         jobIdToJobStatusMap.get(jobId).setFinishTime(System.currentTimeMillis());
         if (isLocalMode(jobId)) {
@@ -304,10 +310,16 @@ public class BasicP2LClient implements P2LClient {
 
         updatePlanStatusForCompletedJobId(planStatus, jobId);
 
-        /* Set the completed job warnings after calling updatePlanStatusForCompletedJobId() otherwise
-           we end up overwriting the warning field with the running job warnings (which are included
-           with the completed job warnings). */        
-        jobIdToJobStatusMap.get(jobId).setWarnings(getCompletedJobWarnings(jobClient, jobStats));
+        JobClient jobClient = null;
+        try {
+            jobClient = PigStats.get().getJobClient();
+            /* Set the completed job warnings after calling updatePlanStatusForCompletedJobId() otherwise
+               we end up overwriting the warning field with the running job warnings (which are included
+               with the completed job warnings). */        
+            jobIdToJobStatusMap.get(jobId).setWarnings(getCompletedJobWarnings(jobClient, jobStats));
+        } catch (UnsupportedOperationException e) {
+            // do nothing
+        }        
 
         psClient.saveStatus(planId, planStatus);
 
@@ -380,47 +392,78 @@ public class BasicP2LClient implements P2LClient {
         }
     }
 
+    protected Long getStartTime() {
+        try {
+            PigStats ps = PigStats.get();
+            java.lang.reflect.Field startTimeField = PigStats.get().getClass().getSuperclass().getDeclaredField("startTime");
+            startTimeField.setAccessible(true);
+            return (Long)startTimeField.get(ps);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Long.MAX_VALUE;
+        }
+    }
+
+    protected Long getEndTime() {
+        try {
+            PigStats ps = PigStats.get();
+            java.lang.reflect.Field endTimeField = PigStats.get().getClass().getSuperclass().getDeclaredField("endTime");
+            endTimeField.setAccessible(true);
+            return (Long)endTimeField.get(ps);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Long.MIN_VALUE;
+        }
+    }
+        
     protected void updatePlanStatusForCompletedJobId(P2jPlanStatus planStatus, String jobId) {
         LOG.info("Updating plan status for completed job " + jobId);
         updatePlanStatusForJobId(planStatus, jobId);
-        JobClient jobClient = PigStats.get().getJobClient();
-        JobID jobID = JobID.forName(jobId);
-        long startTime = Long.MAX_VALUE;
-        long finishTime = Long.MIN_VALUE;
-        /* The JobClient doesn't expose a way to get the Start and Finish time
-           of the over all job[1] sadly, so we're pulling out the min task start
-           time and max task finish time and using these to approximate.
 
-           [1] - Which is really dumb.  The data obviously exists, it gets rendered
-           in the job tracker via the JobInProgress but sadly this is internal
-           to the remote job tracker so we don't have access to this
-           information. */
-        try {
-            List<TaskReport> reports = Lists.newArrayList();
-            reports.addAll(Arrays.asList(jobClient.getMapTaskReports(jobID)));
-            reports.addAll(Arrays.asList(jobClient.getReduceTaskReports(jobID)));
-            for(TaskReport rpt : reports) {
-                /* rpt.getStartTime() sometimes returns zero meaning it does
-                   not know what time it started so we need to prevent using
-                   this or we'll lose the actual lowest start time */
-                long taskStartTime = rpt.getStartTime();
-                if (0 != taskStartTime) {
-                    startTime = Math.min(startTime, taskStartTime);
-                }
-                finishTime = Math.max(finishTime, rpt.getFinishTime());
-            }
+        if (exectype.startsWith("tez")) {
+            // All vertices get the same start and end time
             P2jJobStatus jobStatus = jobIdToJobStatusMap.get(jobId);
-            if (startTime < Long.MAX_VALUE) {
-                jobStatus.setStartTime(startTime);
-            }
-            if (finishTime > Long.MIN_VALUE) {
-                jobStatus.setFinishTime(finishTime);
-            }
-            LOG.info("Determined start and finish times for job " + jobId);
-        } catch (IOException e) {
-            LOG.error("Error getting job info.", e);
-        }
+            jobStatus.setStartTime(getStartTime());
+            jobStatus.setFinishTime(getEndTime());
+        } else {
+            JobClient jobClient = PigStats.get().getJobClient();
+            JobID jobID = JobID.forName(jobId);
+            long startTime = Long.MAX_VALUE;
+            long finishTime = Long.MIN_VALUE;
+            /* The JobClient doesn't expose a way to get the Start and Finish time
+               of the over all job[1] sadly, so we're pulling out the min task start
+               time and max task finish time and using these to approximate.
 
+               [1] - Which is really dumb.  The data obviously exists, it gets rendered
+               in the job tracker via the JobInProgress but sadly this is internal
+               to the remote job tracker so we don't have access to this
+               information. */
+            try {
+                List<TaskReport> reports = Lists.newArrayList();
+                reports.addAll(Arrays.asList(jobClient.getMapTaskReports(jobID)));
+                reports.addAll(Arrays.asList(jobClient.getReduceTaskReports(jobID)));
+                for(TaskReport rpt : reports) {
+                    /* rpt.getStartTime() sometimes returns zero meaning it does
+                       not know what time it started so we need to prevent using
+                       this or we'll lose the actual lowest start time */
+                    long taskStartTime = rpt.getStartTime();
+                    if (0 != taskStartTime) {
+                        startTime = Math.min(startTime, taskStartTime);
+                    }
+                    finishTime = Math.max(finishTime, rpt.getFinishTime());
+                }
+                P2jJobStatus jobStatus = jobIdToJobStatusMap.get(jobId);
+                if (startTime < Long.MAX_VALUE) {
+                    jobStatus.setStartTime(startTime);
+                }
+                if (finishTime > Long.MIN_VALUE) {
+                    jobStatus.setFinishTime(finishTime);
+                }
+                LOG.info("Determined start and finish times for job " + jobId);
+            } catch (IOException e) {
+                LOG.error("Error getting job info.", e);
+            }
+        }
     }
 
     /**
@@ -431,36 +474,79 @@ public class BasicP2LClient implements P2LClient {
      */
     @SuppressWarnings("deprecation")
     protected P2jJobStatus buildJobStatusMap(String jobId) {
-        // FIXME: Use updated api
-        JobClient jobClient = PigStats.get().getJobClient();
-        P2jJobStatus js = jobIdToJobStatusMap.get(jobId);
+        if (exectype.startsWith("tez")) {
+            TezStats ts = (TezStats)PigStats.get();
+            TezJobControl jc = ts.getTezJobControl();
+            P2jJobStatus js = jobIdToJobStatusMap.get(jobId);
 
-        try {
-            RunningJob rj = jobClient.getJob(jobId);
-            if (rj == null) {
-                LOG.warn("Couldn't find job status for jobId=" + jobId);
-                return js;
+            js.setJobName(jobId); // ?
+
+            for (ControlledJob j : jc.getRunningJobList()) {
+                TezJob job = (TezJob)j;
+                Double progress = job.getVertexProgress().get(jobId);
+                if (progress != null) {
+                    js.setMapProgress(progress.floatValue());
+                    js.setReduceProgress(progress.floatValue());
+                    return js;
+                }
+            }
+            
+            for (ControlledJob j : jc.getSuccessfulJobList()) {
+                TezJob job = (TezJob)j;               
+                Double progress = job.getVertexProgress().get(jobId);
+                if (progress != null) {
+                    js.setMapProgress(progress.floatValue());
+                    js.setReduceProgress(progress.floatValue());
+                    js.setIsComplete(true);
+                    js.setIsSuccessful(true);
+                    return js;
+                }
             }
 
-            JobID jobID = rj.getID();
-            js.setCounters(buildCountersMap(rj.getCounters()));
-            js.setWarnings(getRunningJobWarnings(jobClient, jobID.toString()));
+            for (ControlledJob j : jc.getFailedJobList()) {
+                TezJob job = (TezJob)j;
+                Double progress = job.getVertexProgress().get(jobId);
+                if (progress != null) {
+                    js.setMapProgress(progress.floatValue());
+                    js.setReduceProgress(progress.floatValue());
+                    js.setIsComplete(true);
+                    js.setIsSuccessful(false);
+                    return js;
+                }               
+            }
 
-            TaskReport[] mapTaskReport = jobClient.getMapTaskReports(jobID);
-            TaskReport[] reduceTaskReport = jobClient.getReduceTaskReports(jobID);
-            js.setJobName(rj.getJobName());
-            js.setTrackingUrl(rj.getTrackingURL());
-            js.setIsComplete(rj.isComplete());
-            js.setIsSuccessful(rj.isSuccessful());
-            js.setMapProgress(rj.mapProgress());
-            js.setReduceProgress(rj.reduceProgress());
-            js.setTotalMappers(mapTaskReport.length);
-            js.setTotalReducers(reduceTaskReport.length);
             return js;
-        } catch (IOException e) {
-            LOG.error("Error getting job info.", e);
-        }
+            
+        } else {
+            JobClient jobClient = PigStats.get().getJobClient();;
+            P2jJobStatus js = jobIdToJobStatusMap.get(jobId);
+        
+            try {
+                RunningJob rj = jobClient.getJob(jobId);
+                if (rj == null) {
+                    LOG.warn("Couldn't find job status for jobId=" + jobId);
+                    return js;
+                }
 
+                JobID jobID = rj.getID();
+                js.setCounters(buildCountersMap(rj.getCounters()));
+                js.setWarnings(getRunningJobWarnings(jobClient, jobID.toString()));
+
+                TaskReport[] mapTaskReport = jobClient.getMapTaskReports(jobID);
+                TaskReport[] reduceTaskReport = jobClient.getReduceTaskReports(jobID);
+                js.setJobName(rj.getJobName());
+                js.setTrackingUrl(rj.getTrackingURL());
+                js.setIsComplete(rj.isComplete());
+                js.setIsSuccessful(rj.isSuccessful());
+                js.setMapProgress(rj.mapProgress());
+                js.setReduceProgress(rj.reduceProgress());
+                js.setTotalMappers(mapTaskReport.length);
+                js.setTotalReducers(reduceTaskReport.length);
+                return js;
+            } catch (IOException e) {
+                LOG.error("Error getting job info.", e);
+            }
+        }                
         return null;
     }
 
