@@ -246,13 +246,12 @@ public class BasicP2LClient implements P2LClient {
         }
 
         PigStats.JobGraph jobGraph = PigStats.get().getJobGraph();
-        LOG.debug("jobStartedNotification - jobId " + jobId + ", jobGraph:\n" + jobGraph);
 
         // for each job in the graph, check if the stats for a job with this
         // name is found. If so, look up it's scope and bind the jobId to
         // the DAGNode with the same scope.
-        for (JobStats jobStats : jobGraph) {            
-            if (jobId.equals(jobStats.getJobId())) {
+        for (JobStats jobStats : jobGraph) {
+            if (jobStats != null && jobId.equals(jobStats.getJobId())) {
                 LOG.info("jobStartedNotification - scope " + jobStats.getName() + " is jobId " + jobId);
                 P2jJobStatus jobStatus = new P2jJobStatus();
                 jobStatus.setJobId(jobId);
@@ -432,6 +431,7 @@ public class BasicP2LClient implements P2LClient {
      */
     @SuppressWarnings("deprecation")
     protected P2jJobStatus buildJobStatusMap(String jobId) {
+        // FIXME: Use updated api
         JobClient jobClient = PigStats.get().getJobClient();
         P2jJobStatus js = jobIdToJobStatusMap.get(jobId);
 
