@@ -35,6 +35,7 @@ import org.apache.pig.impl.io.ReadToEndLoader;
 import org.apache.pig.impl.io.TFileStorage;
 import org.apache.pig.tools.pigstats.JobStats;
 import org.apache.pig.tools.pigstats.ScriptState;
+import org.apache.pig.tools.pigstats.tez.TezTaskStats;
 
 /**
  * Output sampler of intermediate results of Pig jobs.
@@ -142,35 +143,42 @@ public class OutputSampler {
     private List<POStore> getStoreInfo(JobStats jobStats) {
         List<POStore> storeInfo = new LinkedList<POStore>();
 
-        // Use reflection to get the store info for the jobStats
-        // Done b/c the OutputStats from jobStats.getOutputs()
-        // doesn't include intermediate (temp) outputs
-        List<POStore> mapStores = null;
-        List<POStore> reduceStores = null;
-        try {
-            mapStores = (LinkedList<POStore>) getInheritedFieldValue(jobStats, "mapStores");
-        } catch (Exception e) {
-            LOG.warn("Failed to get map store information for jobId [" + jobStats.getJobId() + "].", e);
-        }
+        if (jobStats instanceof TezTaskStats) {
+            try {
+                storeInfo = (LinkedList<POStore>)getInheritedFieldValue(jobStats, "stores");
+            } catch (Exception e) {
+                LOG.warn("Failed to get store information for jobId [" + jobStats.getJobId() + "].", e);
+            }
+        } else {            
+            // Use reflection to get the store info for the jobStats
+            // Done b/c the OutputStats from jobStats.getOutputs()
+            // doesn't include intermediate (temp) outputs
+            List<POStore> mapStores = null;
+            List<POStore> reduceStores = null;
+            try {
+                mapStores = (LinkedList<POStore>) getInheritedFieldValue(jobStats, "mapStores");
+            } catch (Exception e) {
+                LOG.warn("Failed to get map store information for jobId [" + jobStats.getJobId() + "].", e);
+            }
 
-        try {
-            reduceStores = (LinkedList<POStore>) getInheritedFieldValue(jobStats, "reduceStores");
-        } catch (Exception e) {
-            LOG.warn("Failed to get reduce store information for jobId [" + jobStats.getJobId() + "].", e);
-        }
+            try {
+                reduceStores = (LinkedList<POStore>) getInheritedFieldValue(jobStats, "reduceStores");
+            } catch (Exception e) {
+                LOG.warn("Failed to get reduce store information for jobId [" + jobStats.getJobId() + "].", e);
+            }
 
-        if (mapStores != null) {
-            storeInfo.addAll(mapStores);
-        } else {
-            LOG.info("No map store information for jobId [" + jobStats.getJobId() + "].");
-        }
+            if (mapStores != null) {
+                storeInfo.addAll(mapStores);
+            } else {
+                LOG.info("No map store information for jobId [" + jobStats.getJobId() + "].");
+            }
 
-        if (reduceStores != null) {
-            storeInfo.addAll(reduceStores);
-        } else {
-            LOG.info("No reduce store information for jobId [" + jobStats.getJobId() + "].");
+            if (reduceStores != null) {
+                storeInfo.addAll(reduceStores);
+            } else {
+                LOG.info("No reduce store information for jobId [" + jobStats.getJobId() + "].");
+            }
         }
-
         return storeInfo;
     }
 

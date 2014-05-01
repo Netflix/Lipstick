@@ -612,6 +612,15 @@
                     }
                     GraphView.displayRecordCount(scopeId+'-out', count_out);
                 }
+            } else if (jobStats.counters.hasOwnProperty('org.apache.tez.common.counters.TaskCounter')) {
+                if (jobStats.counters['org.apache.tez.common.counters.TaskCounter'].counters.hasOwnProperty('OUTPUT_RECORDS')) {                    
+                    count_out = jobStats['counters']['org.apache.tez.common.counters.TaskCounter']['counters']['OUTPUT_RECORDS']
+                    GraphView.displayRecordCount(scopeId+'-out', count_out);
+                }
+                if (jobStats.counters['org.apache.tez.common.counters.TaskCounter'].counters.hasOwnProperty('REDUCE_INPUT_RECORDS')) {
+                    count_in = jobStats['counters']['org.apache.tez.common.counters.TaskCounter']['counters']['REDUCE_INPUT_RECORDS']
+                    GraphView.displayRecordCount(scopeId+'-in', count_in);
+                }
             }
             // Update jobId's progress bars.
             $('.'+jobId+' div.map').css('width',mapProgress+'%');
