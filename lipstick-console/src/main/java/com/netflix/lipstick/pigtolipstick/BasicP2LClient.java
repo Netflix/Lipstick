@@ -485,6 +485,7 @@ public class BasicP2LClient implements P2LClient {
                 TezJob job = (TezJob)j;
                 Double progress = job.getVertexProgress().get(jobId);
                 if (progress != null) {
+                    js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
                     js.setMapProgress(progress.floatValue());
                     js.setReduceProgress(progress.floatValue());
                     return js;
@@ -495,6 +496,7 @@ public class BasicP2LClient implements P2LClient {
                 TezJob job = (TezJob)j;               
                 Double progress = job.getVertexProgress().get(jobId);
                 if (progress != null) {
+                    js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
                     js.setMapProgress(progress.floatValue());
                     js.setReduceProgress(progress.floatValue());
                     js.setIsComplete(true);
@@ -507,6 +509,7 @@ public class BasicP2LClient implements P2LClient {
                 TezJob job = (TezJob)j;
                 Double progress = job.getVertexProgress().get(jobId);
                 if (progress != null) {
+                    js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
                     js.setMapProgress(progress.floatValue());
                     js.setReduceProgress(progress.floatValue());
                     js.setIsComplete(true);
@@ -550,6 +553,18 @@ public class BasicP2LClient implements P2LClient {
         return null;
     }
 
+    public Map<String, P2jCounters> buildCountersMap(Map<String, Map<String, Long>> counters) {
+        Map<String, P2jCounters> cMap = Maps.newHashMap();
+        for (Map.Entry<String, Map<String, Long>> group : counters.entrySet()) {
+            P2jCounters countersObj = new P2jCounters();
+            cMap.put(group.getKey(), countersObj);
+            for (Map.Entry<String, Long> counter : group.getValue().entrySet()) {
+                countersObj.getCounters().put(counter.getKey(), counter.getValue());
+            }
+        }
+        return cMap;
+    }
+    
     public Map<String, P2jCounters> buildCountersMap(Counters counters) {
         Map<String, P2jCounters> cMap = Maps.newHashMap();
         for (Group g : counters) {
