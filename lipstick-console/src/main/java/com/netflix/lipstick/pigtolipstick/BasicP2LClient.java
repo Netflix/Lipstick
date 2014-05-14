@@ -31,13 +31,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.Counters.Group;
+import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
-import org.apache.pig.ExecType;
 import org.apache.pig.LipstickPigServer;
 import org.apache.pig.impl.plan.OperatorPlan;
 import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
@@ -45,7 +44,6 @@ import org.apache.pig.tools.pigstats.tez.TezStats;
 import org.apache.pig.backend.hadoop.executionengine.tez.TezJob;
 import org.apache.pig.backend.hadoop.executionengine.tez.TezOperator;
 import org.apache.pig.backend.hadoop.executionengine.tez.TezOperPlan;
-import org.apache.pig.backend.hadoop.executionengine.tez.TezJobControl;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
@@ -151,16 +149,16 @@ public class BasicP2LClient implements P2LClient {
         if (plan != null && unopPlanGenerator != null && opPlanGenerator != null && context != null) {
             Configuration conf = null;
 
-            for (org.apache.pig.impl.plan.Operator job : plan) {
+            for (org.apache.pig.impl.plan.Operator<?> op : plan) {
                 if (conf == null) {
                     conf = new Configuration();
                     
                     // Decide which scriptstate to add to.
                     // FIXME: This functionality needs to be added to ScriptState proper?
                     if (exectype.startsWith("tez")) {
-                        TezScriptState.get().addSettingsToConf((TezOperator)job, conf);
+                        TezScriptState.get().addSettingsToConf((TezOperator)op, conf);
                     } else {
-                        MRScriptState.get().addSettingsToConf((MapReduceOper)job, conf);
+                        MRScriptState.get().addSettingsToConf((MapReduceOper)op, conf);
                     }
                     break;
                 }
@@ -476,50 +474,47 @@ public class BasicP2LClient implements P2LClient {
     protected P2jJobStatus buildJobStatusMap(String jobId) {
         if (exectype.startsWith("tez")) {
             TezStats ts = (TezStats)PigStats.get();
-            TezJobControl jc = ts.getTezJobControl();
+            TezJob job = ts.getTezJob();
             P2jJobStatus js = jobIdToJobStatusMap.get(jobId);
 
             js.setJobName(jobId); // ?
 
-            for (ControlledJob j : jc.getRunningJobList()) {
-                TezJob job = (TezJob)j;
-                Double progress = job.getVertexProgress().get(jobId);
-                if (progress != null) {
-                    js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
-                    js.setMapProgress(progress.floatValue());
-                    js.setReduceProgress(progress.floatValue());
+            switch (job.getJobState()) {
+                case RUNNING: {
+                    Double progress = job.getVertexProgress().get(jobId);
+                    if (progress != null) {
+                        js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
+                        js.setMapProgress(progress.floatValue());
+                        js.setReduceProgress(progress.floatValue());
+                        return js;
+                    }
+                }
+                case SUCCESS: {
+                    Double progress = job.getVertexProgress().get(jobId);
+                    if (progress != null) {
+                        js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
+                        js.setMapProgress(progress.floatValue());
+                        js.setReduceProgress(progress.floatValue());
+                        js.setIsComplete(true);
+                        js.setIsSuccessful(true);
+                        return js;
+                    }
+                }
+                case FAILED: {
+                    Double progress = job.getVertexProgress().get(jobId);
+                    if (progress != null) {
+                        js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
+                        js.setMapProgress(progress.floatValue());
+                        js.setReduceProgress(progress.floatValue());
+                        js.setIsComplete(true);
+                        js.setIsSuccessful(false);
+                        return js;
+                    }
+                }
+                default: {
                     return js;
                 }
             }
-            
-            for (ControlledJob j : jc.getSuccessfulJobList()) {
-                TezJob job = (TezJob)j;               
-                Double progress = job.getVertexProgress().get(jobId);
-                if (progress != null) {
-                    js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
-                    js.setMapProgress(progress.floatValue());
-                    js.setReduceProgress(progress.floatValue());
-                    js.setIsComplete(true);
-                    js.setIsSuccessful(true);
-                    return js;
-                }
-            }
-
-            for (ControlledJob j : jc.getFailedJobList()) {
-                TezJob job = (TezJob)j;
-                Double progress = job.getVertexProgress().get(jobId);
-                if (progress != null) {
-                    js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
-                    js.setMapProgress(progress.floatValue());
-                    js.setReduceProgress(progress.floatValue());
-                    js.setIsComplete(true);
-                    js.setIsSuccessful(false);
-                    return js;
-                }               
-            }
-
-            return js;
-            
         } else {
             JobClient jobClient = PigStats.get().getJobClient();;
             P2jJobStatus js = jobIdToJobStatusMap.get(jobId);
