@@ -110,9 +110,18 @@ public class MRPlanCalculatorTest {
         f.setAccessible(true);
 
         Object graph = f.get(lps);
+        Method parseQueryMethod = graph.getClass().getDeclaredMethod("parseQuery");
+        parseQueryMethod.setAccessible(true);
+        parseQueryMethod.invoke(graph);
+        
         Method buildPlanMethod = graph.getClass().getDeclaredMethod("buildPlan", String.class);
         buildPlanMethod.setAccessible(true);
         buildPlanMethod.invoke(graph, new Object[] { null });
+        
+        Method compilePlanMethod = graph.getClass().getDeclaredMethod("compile");
+        compilePlanMethod.setAccessible(true);
+        compilePlanMethod.invoke(graph);
+        
         Method getPlanMethod = graph.getClass().getMethod("getPlan", String.class);
 
         return (LogicalPlan) getPlanMethod.invoke(graph, new Object[] { null });
