@@ -65,6 +65,7 @@ public class Pig2DotGenerator {
     protected static final String BG_EXPRESSION = "#BCBCBC";
     protected static final String BG_MAP_TASK = "#3299BB";
     protected static final String BG_RED_TASK = "#FF9900";
+    protected static final String BG_TEZ_VERTEX = "#F5D04C";
     protected static final String BG_UNK_TASK = "#BF0A0D";
     protected static final String BG_WHITE = "#FFFFFF";
 
@@ -116,6 +117,9 @@ public class Pig2DotGenerator {
             }
             if (stepType.equals("REDUCER")) {
                 return BG_RED_TASK;
+            }
+            if (stepType.equals("TezVertex")) {
+                return BG_TEZ_VERTEX;
             }
         }
         return BG_UNK_TASK;

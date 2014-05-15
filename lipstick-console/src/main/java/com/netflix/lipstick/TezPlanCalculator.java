@@ -22,13 +22,13 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.apache.pig.backend.hadoop.executionengine.tez.TezOperator;
 import org.apache.pig.backend.hadoop.executionengine.tez.TezOperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator.OriginalLocation;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.PODemux;
+import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLoad;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLocalRearrange;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPreCombinerLocalRearrange;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POSplit;
@@ -41,6 +41,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
 import com.netflix.lipstick.model.P2jPlan;
+import com.netflix.lipstick.model.operators.P2jLOLoad;
 import com.netflix.lipstick.model.operators.P2jLOStore;
 import com.netflix.lipstick.model.operators.P2jLogicalRelationalOperator;
 
@@ -118,6 +119,20 @@ public class TezPlanCalculator {
         }
         return null;
     }
+     
+    protected P2jLogicalRelationalOperator getOpForLoad(POLoad pop) {
+        FileSpec pofs = pop.getLFile();
+        for (Entry<String, P2jLogicalRelationalOperator> entry : p2jMap.entrySet()) {
+            if (entry.getValue() instanceof P2jLOLoad) {
+                P2jLOLoad load = (P2jLOLoad) entry.getValue();                
+                if (load.getAlias().equals(pop.getAlias()) && load.getStorageLocation().equals(pofs.getFileName())
+                    && pofs.getFuncName().endsWith(load.getStorageFunction())) {
+                    return load;
+                }
+            }
+        }
+        return null;
+    }
     
     protected void assignVertex(PhysicalOperator pop, String jid) {
 
@@ -146,6 +161,12 @@ public class TezPlanCalculator {
         
         if (pop instanceof POStore) {
             P2jLogicalRelationalOperator node = getOpForStore((POStore) pop);
+            if (node != null) {
+                node.setMapReduce(jid, stepTypeString);
+                return;
+            }
+        } else if (pop instanceof POLoad) {
+            P2jLogicalRelationalOperator node = getOpForLoad((POLoad) pop);
             if (node != null) {
                 node.setMapReduce(jid, stepTypeString);
                 return;
@@ -180,7 +201,7 @@ public class TezPlanCalculator {
 
     protected void assignVerticesToUnknownNodes() {
         for (P2jLogicalRelationalOperator node : p2jMap.values()) {
-            if (node.getMapReduce() == null || node.getMapReduce().getJobId() == null) {
+            if (node.getMapReduce() == null || node.getMapReduce().getJobId() == null) {                
                 String jobId = resolveJobForNode(node);
                 if (jobId != null) {
                     node.setMapReduce(jobId, "TezVertex");
