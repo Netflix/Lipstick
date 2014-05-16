@@ -129,7 +129,7 @@ project(':lipstick-console') {
          includeInJar('org.kohsuke:graphviz-api:1.1')
          includeInJar('org.apache.commons:commons-io:1.3.2')
          includeInJar('log4j:log4j:1.2.17')
-         includeInJar('joda-time:joda-time:1.6')
+         includeInJar('joda-time:joda-time:2.1')
          includeInJar('com.googlecode.jatl:jatl:0.2.2')
          includeInJar('com.sun.jersey:jersey-client:1.8')
          includeInJar('com.sun.jersey:jersey-core:1.8')
