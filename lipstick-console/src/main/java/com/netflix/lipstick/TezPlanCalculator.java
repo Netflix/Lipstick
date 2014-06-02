@@ -34,12 +34,15 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POSplit;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
 import org.apache.pig.impl.io.FileSpec;
+import org.apache.pig.impl.plan.OperatorKey;
 import org.apache.pig.newplan.Operator;
 import org.apache.pig.newplan.logical.relational.LogicalRelationalOperator;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
+import com.netflix.lipstick.adaptors.POJsonAdaptor;
 import com.netflix.lipstick.model.P2jPlan;
 import com.netflix.lipstick.model.operators.P2jLOLoad;
 import com.netflix.lipstick.model.operators.P2jLOStore;
@@ -55,6 +58,9 @@ public class TezPlanCalculator {
     protected Map<Operator, String> reverseMap;
     protected Map<String, Operator> locationMap;
     
+    // Holds, for each TezOperator (Vertex), the number of logical operators
+    protected Map<OperatorKey, Integer> operatorCounts;
+    
     public TezPlanCalculator(P2jPlan p2jPlan,
                             TezOperPlan tp,
                             Map<PhysicalOperator, Operator> phy2LogMap,
@@ -65,6 +71,7 @@ public class TezPlanCalculator {
         this.p2jPlan = p2jPlan;
         this.reverseMap = reverseMap;
         this.locationMap = generateLocationMap();
+        this.operatorCounts = Maps.newHashMap();
         p2jPlan.setPlan(assignVerticesToNodes());
     }
 
@@ -92,17 +99,23 @@ public class TezPlanCalculator {
 
     protected Map<String, P2jLogicalRelationalOperator> assignVerticesToNodes() {
         for (TezOperator job : tp) {
-            String jid = job.getOperatorKey().toString();
-            assignVerticesToPlan(job.plan, jid);
+            operatorCounts.put(job.getOperatorKey(), 0);
+            assignVerticesToPlan(job.plan, job.getOperatorKey());
         }
 
         assignVerticesToUnknownNodes();
+        
+        for (Map.Entry<OperatorKey, Integer> operatorCount : operatorCounts.entrySet()) {
+        	if (operatorCount.getValue() < 1) { // No LogicalOperators mapped to this TezOperator
+        		appendUnknownOperators(operatorCount.getKey());
+        	}
+        }
         return p2jMap;
     }
 
-    protected void assignVerticesToPlan(PhysicalPlan pp, String jid) {
+    protected void assignVerticesToPlan(PhysicalPlan pp, OperatorKey job) {
         for (PhysicalOperator pop : pp) {
-            assignVertex(pop, jid);
+            assignVertex(pop, job);
         }
     }
 
@@ -134,26 +147,27 @@ public class TezPlanCalculator {
         return null;
     }
     
-    protected void assignVertex(PhysicalOperator pop, String jid) {
+    protected void assignVertex(PhysicalOperator pop, OperatorKey job) {
 
+    	String jid = job.toString();
+    	
         // special cases - find other operators inside these that need to be
         // assigned
-       
         if (pop instanceof POLocalRearrange) {
             for (PhysicalPlan ipl : ((POLocalRearrange) pop).getPlans()) {
-                assignVerticesToPlan(ipl, jid);
+                assignVerticesToPlan(ipl, job);
             }
         } else if (pop instanceof PODemux) {
             for (PhysicalPlan ipl : ((PODemux) pop).getPlans()) {
-                assignVerticesToPlan(ipl, jid);
+                assignVerticesToPlan(ipl, job);
             }
         } else if (pop instanceof POPreCombinerLocalRearrange) {
             for (PhysicalPlan ipl : ((POPreCombinerLocalRearrange) pop).getPlans()) {
-                assignVerticesToPlan(ipl, jid);
+                assignVerticesToPlan(ipl, job);
             }       
         } else if (pop instanceof POSplit) {
             for (PhysicalPlan ipl : ((POSplit) pop).getPlans()) {
-                assignVerticesToPlan(ipl, jid);
+                assignVerticesToPlan(ipl, job);
             }
         }
 
@@ -162,18 +176,21 @@ public class TezPlanCalculator {
         if (pop instanceof POStore) {
             P2jLogicalRelationalOperator node = getOpForStore((POStore) pop);
             if (node != null) {
+            	operatorCounts.put(job, operatorCounts.get(job)+1);
                 node.setMapReduce(jid, stepTypeString);
                 return;
             }
         } else if (pop instanceof POLoad) {
             P2jLogicalRelationalOperator node = getOpForLoad((POLoad) pop);
             if (node != null) {
+            	operatorCounts.put(job, operatorCounts.get(job)+1);
                 node.setMapReduce(jid, stepTypeString);
                 return;
             }
         } else if (phy2LogMap.containsKey(pop) && reverseMap.containsKey(phy2LogMap.get(pop))) {
             String nodeId = reverseMap.get(phy2LogMap.get(pop));
             P2jLogicalRelationalOperator node = p2jMap.get(nodeId);
+            operatorCounts.put(job, operatorCounts.get(job)+1);
             node.setMapReduce(jid, stepTypeString);
             LOG.debug("Found key for: " + pop.toString());
             return;
@@ -185,7 +202,8 @@ public class TezPlanCalculator {
                 if (locationMap.containsKey(loc.toString())) {
                     P2jLogicalRelationalOperator node = p2jMap.get(reverseMap.get(locationMap.get(loc.toString())));
                     LOG.debug("Found location... " + node);
-                    if (node.getMapReduce() == null) {                        
+                    if (node.getMapReduce() == null) {
+                    	operatorCounts.put(job, operatorCounts.get(job)+1);
                         node.setMapReduce(jid, stepTypeString);
                         didAssign = true;
                         LOG.debug("Assign location... " + node);
@@ -204,6 +222,7 @@ public class TezPlanCalculator {
             if (node.getMapReduce() == null || node.getMapReduce().getJobId() == null) {                
                 String jobId = resolveJobForNode(node);
                 if (jobId != null) {
+                	incrementOperatorCount(jobId, 1);
                     node.setMapReduce(jobId, "TezVertex");
                 }
             }
@@ -235,7 +254,22 @@ public class TezPlanCalculator {
         }
         return null;
     }
-
+    
+    /**
+     * Increment the number of logical operators that map to a given TezOperator's
+     * plan.
+     * @param jobId The jobId of the TezOperator to update
+     * @param update The integer amount to update the TezOperator's count
+     */
+    protected void incrementOperatorCount(String jobId, Integer update) {
+    	for (OperatorKey key : operatorCounts.keySet()) {
+    		if (key.toString().equals(jobId)) {
+    			operatorCounts.put(key, operatorCounts.get(key) + update);
+    			return;
+    		}
+    	}
+    }
+    
     interface ScopeGetter {
         List<String> getScopes(P2jLogicalRelationalOperator node);
     }
@@ -261,5 +295,90 @@ public class TezPlanCalculator {
             }
         }
         return scopes;
+    }
+
+    protected List<P2jLogicalRelationalOperator> p2jOpsForJobId(String jobId) {
+    	List<P2jLogicalRelationalOperator> result = Lists.newArrayList();
+    	for (P2jLogicalRelationalOperator op : p2jMap.values()) {
+    		if (op.getMapReduce().getJobId().equals(jobId)) {
+    			result.add(op);
+    		}
+    	}
+    	return result;
+    }
+    
+    protected List<P2jLogicalRelationalOperator> getOutBoundaryNodes(String jobId) {
+    	List<P2jLogicalRelationalOperator> result = Lists.newArrayList();
+    	for (P2jLogicalRelationalOperator p2jOp : p2jOpsForJobId(jobId)) {
+    		for (String id : p2jOp.getSuccessors()) {
+    			P2jLogicalRelationalOperator succ = p2jMap.get(id);
+    			if (!succ.getMapReduce().getJobId().equals(jobId)) {
+    				result.add(p2jOp);
+    				break;
+    			}
+    		}
+    	}
+    	return result;
+    }
+    
+    protected List<P2jLogicalRelationalOperator> getInBoundaryNodes(String jobId) {
+    	List<P2jLogicalRelationalOperator> result = Lists.newArrayList();
+    	for (P2jLogicalRelationalOperator p2jOp : p2jOpsForJobId(jobId)) {
+    		for (String id : p2jOp.getPredecessors()) {
+    			P2jLogicalRelationalOperator pred = p2jMap.get(id);
+    			if (!pred.getMapReduce().getJobId().equals(jobId)) {
+    				result.add(p2jOp);
+    				break;
+    			}
+    		}
+    	}
+    	return result;
+    }
+    
+    protected Long nextP2jId() {
+    	Long id = 0l;
+    	for (String existing : p2jMap.keySet()) {
+    		Long e = Long.valueOf(existing);
+    		if (id < e) {
+    			id = e;
+    		}
+    	}
+    	id += 1l;
+    	return id;
+    }
+    
+    protected void appendUnknownOperators(OperatorKey job) {
+    	TezOperator op = tp.getOperator(job);
+    	
+    	// First, get p2jPlan representation of TezOperator's physical plan
+    	POJsonAdaptor pja = new POJsonAdaptor(job.toString(), nextP2jId(), op.plan);
+    	Map<String, P2jLogicalRelationalOperator> opPlan = pja.getPlan();
+    	
+    	// Next, add all the new operators to the existing plan
+    	p2jMap.putAll(opPlan);
+    	
+    	List<TezOperator> preds = tp.getPredecessors(op);
+    	for (TezOperator pred : preds) {
+    		String predJobId = pred.getOperatorKey().toString();
+    		List<P2jLogicalRelationalOperator> p2jPreds = getOutBoundaryNodes(predJobId);
+    		for (P2jLogicalRelationalOperator p2jPred : p2jPreds) {
+    			p2jPred.getSuccessors().addAll(pja.getSources());
+    		}
+    	}
+    	
+    	List<TezOperator> succs = tp.getSuccessors(op);
+    	for (TezOperator succ : succs) {
+    		String succJobId = succ.getOperatorKey().toString();
+    		List<P2jLogicalRelationalOperator> p2jSuccs = getInBoundaryNodes(succJobId);
+    		for (P2jLogicalRelationalOperator p2jSucc : p2jSuccs) {
+    			p2jSucc.getPredecessors().addAll(pja.getSinks());
+    			for (String sinkId : pja.getSinks()) {
+    				P2jLogicalRelationalOperator sink = p2jMap.get(sinkId);
+    				sink.getSuccessors().add(p2jSucc.getUid());
+    			}
+    		}
+    	}
+
+    	p2jPlan.setPlan(p2jMap);
     }
 }
