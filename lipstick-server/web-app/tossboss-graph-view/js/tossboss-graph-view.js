@@ -499,7 +499,7 @@
             if (startScopeId != endScopeId) {
                 d3.select(element).classed('intermediate',true);
                 // If edge is output of a split, label only 1 edge
-                if ((startObj.operator !== 'LOSplit') || ($('.edge.'+startScopeId+'-out.'+startObj.operator).length === 0)) {
+                if ((startObj.operator !== 'LOSplit' && startObj.successors.length < 2) || ($('.edge.'+startScopeId+'-out.'+startObj.operator).length === 0)) {
                     d3.select(element).classed(startScopeId+'-out',true);
                 }
             }
