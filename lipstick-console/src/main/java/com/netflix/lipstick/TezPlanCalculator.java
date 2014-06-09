@@ -25,7 +25,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.pig.backend.hadoop.executionengine.tez.TezOperator;
 import org.apache.pig.backend.hadoop.executionengine.tez.TezOperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
-import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator.OriginalLocation;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.PODemux;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLoad;
@@ -56,7 +55,6 @@ public class TezPlanCalculator {
     protected Map<PhysicalOperator, Operator> phy2LogMap;
     protected Map<String, P2jLogicalRelationalOperator> p2jMap;
     protected Map<Operator, String> reverseMap;
-    protected Map<String, Operator> locationMap;
     
     // Holds, for each TezOperator (Vertex), the number of logical operators
     protected Map<OperatorKey, Integer> operatorCounts;
@@ -70,41 +68,22 @@ public class TezPlanCalculator {
         this.p2jMap = p2jPlan.getPlan();
         this.p2jPlan = p2jPlan;
         this.reverseMap = reverseMap;
-        this.locationMap = generateLocationMap();
         this.operatorCounts = Maps.newHashMap();
-        p2jPlan.setPlan(assignVerticesToNodes());
+        p2jPlan.setPlan(assignVerticesToNodes());        
     }
 
     public P2jPlan getP2jPlan() {
         return p2jPlan;
     }
     
-    /**
-     * Generate a map of pig script code location to logical operators.
-     *
-     * @return map of location to logical operator
-     */
-    protected Map<String, Operator> generateLocationMap() {
-        Map<String, Operator> locationMap = Maps.newHashMap();
-        for (Operator op : reverseMap.keySet()) {
-            LogicalRelationalOperator logicalOp = (LogicalRelationalOperator) op;
-            OriginalLocation loc = new OriginalLocation(logicalOp.getAlias(),
-                                                        logicalOp.getLocation().line(),
-                                                        logicalOp.getLocation().offset());
-            locationMap.put(loc.toString(), logicalOp);
-        }
-        LOG.debug(locationMap);
-        return locationMap;
-    }
-
     protected Map<String, P2jLogicalRelationalOperator> assignVerticesToNodes() {
         for (TezOperator job : tp) {
             operatorCounts.put(job.getOperatorKey(), 0);
             assignVerticesToPlan(job.plan, job.getOperatorKey());
-        }
+        }        
 
         assignVerticesToUnknownNodes();
-        
+                
         for (TezOperator job : tp) {
             Integer count = operatorCounts.get(job.getOperatorKey());
             if (count < 1) {
@@ -113,6 +92,7 @@ public class TezPlanCalculator {
         }
         
         connectUnknownOperators();
+
         p2jPlan.setPlan(p2jMap);
         return p2jMap;
     }
@@ -198,26 +178,7 @@ public class TezPlanCalculator {
             node.setMapReduce(jid, stepTypeString);
             LOG.debug("Found key for: " + pop.toString());
             return;
-        } else {
-            LOG.debug("No node for pop: " + pop + pop.getClass() + " ... Searching locationMap.");
-            boolean didAssign = false;
-            for (OriginalLocation loc : pop.getOriginalLocations()) {
-                LOG.debug("Checking location: " + loc);
-                if (locationMap.containsKey(loc.toString())) {
-                    P2jLogicalRelationalOperator node = p2jMap.get(reverseMap.get(locationMap.get(loc.toString())));
-                    LOG.debug("Found location... " + node);
-                    if (node.getMapReduce() == null) {
-                    	operatorCounts.put(job, operatorCounts.get(job)+1);
-                        node.setMapReduce(jid, stepTypeString);
-                        didAssign = true;
-                        LOG.debug("Assign location... " + node);
-                    }
-                }
-            }
-            if (didAssign) {
-                return;
-            }
-        }
+        } 
         LOG.debug("*** Couldn't assign " + pop.getClass() + pop);
     }
 
@@ -304,8 +265,10 @@ public class TezPlanCalculator {
     protected List<P2jLogicalRelationalOperator> p2jOpsForJobId(String jobId) {
     	List<P2jLogicalRelationalOperator> result = Lists.newArrayList();
     	for (P2jLogicalRelationalOperator op : p2jMap.values()) {
-    		if (op.getMapReduce().getJobId().equals(jobId)) {
-    			result.add(op);
+    		if (op.getMapReduce() != null && op.getMapReduce().getJobId() != null) {
+    			if (op.getMapReduce().getJobId().equals(jobId)) {
+    				result.add(op);
+    			}
     		}
     	}
     	return result;
@@ -319,9 +282,9 @@ public class TezPlanCalculator {
     	    } else {
     	        for (String id : p2jOp.getSuccessors()) {
     	            P2jLogicalRelationalOperator succ = p2jMap.get(id);
-    	            if (!succ.getMapReduce().getJobId().equals(jobId)) {
-    	                result.add(p2jOp);
-    	                break;
+    	            if (succ.getMapReduce() == null || succ.getMapReduce().getJobId() == null || !succ.getMapReduce().getJobId().equals(jobId)) {
+    	            	result.add(p2jOp);
+    	            	break;
     	            }
     	        }
     	    }
@@ -338,9 +301,9 @@ public class TezPlanCalculator {
     	    } else {
     	         for (String id : p2jOp.getPredecessors()) {
     	             P2jLogicalRelationalOperator pred = p2jMap.get(id);
-    	             if (!pred.getMapReduce().getJobId().equals(jobId)) {
-    	                 result.add(p2jOp);
-    	                 break;
+    	             if (pred.getMapReduce() == null || pred.getMapReduce().getJobId() == null || !pred.getMapReduce().getJobId().equals(jobId)) {
+    	            	 result.add(p2jOp);
+    	            	 break;
     	             }
     	         }
     	     }
