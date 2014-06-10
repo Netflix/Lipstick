@@ -28,6 +28,7 @@
 		<mapping package='com.netflix.lipstick.model.operators.elements' />
 
 		<mapping class='com.netflix.lipstick.model.P2jCounters' />
+		<mapping class='com.netflix.lipstick.model.P2jWarning' />
 		<mapping class='com.netflix.lipstick.model.P2jJobStatus' />
 		<mapping class='com.netflix.lipstick.model.P2jPlan' />
 		<mapping class='com.netflix.lipstick.model.P2jPlanPackage' />

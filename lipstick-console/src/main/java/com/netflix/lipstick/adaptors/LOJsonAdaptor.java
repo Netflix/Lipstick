@@ -172,8 +172,16 @@ public class LOJsonAdaptor {
 
         private static String nodeToString(LogicalExpression node, LogicalExpressionPlan plan) throws FrontendException {
             if (node instanceof ConstantExpression) {
-                return ((ConstantExpression) node).getValue().toString();
+                Object value = ((ConstantExpression) node).getValue();
+                if (value != null) {
+                    return value.toString();
+                } else {
+                    // This should ONLY happen in edge cases when the constant expression is built
+                    // incorrectly, eg with the ASSERT operator in the case where there's no message
+                    return "null"; 
+                }                
             }
+            
             List<String> outList = Lists.newArrayList();
             List<Operator> s = plan.getSuccessors(node);
             if (s != null && !s.isEmpty()) {
