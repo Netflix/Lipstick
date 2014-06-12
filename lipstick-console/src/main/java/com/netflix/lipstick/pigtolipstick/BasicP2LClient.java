@@ -104,12 +104,12 @@ public class BasicP2LClient implements P2LClient {
     protected String exectype;
     
     /**
-     * Instantiates a new BasicP2LClient using RestfulPigStatusClient with serviceUrl.
+     * Instantiates a new BasicP2LClient using RestfulPigStatusClient with serviceUrls.
      *
-     * @param serviceUrl the url to connect to the Lipstick Server
+     * @param serviceUrls One or more comma separated urls for connecting to a Lipstick Server
      */
-    public BasicP2LClient(String serviceUrl) {
-        this(new RestfulPigStatusClient(serviceUrl));
+    public BasicP2LClient(String serviceUrls) {
+        this(new RestfulPigStatusClient(serviceUrls));
     }
 
     public BasicP2LClient(PigStatusClient client) {
