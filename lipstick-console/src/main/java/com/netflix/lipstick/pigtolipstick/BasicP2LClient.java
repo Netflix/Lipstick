@@ -31,6 +31,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.Counters.Group;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobID;
@@ -475,12 +476,20 @@ public class BasicP2LClient implements P2LClient {
         if (exectype.startsWith("tez")) {
             TezStats ts = (TezStats)PigStats.get();
             TezJob job = ts.getTezJob();
-            P2jJobStatus js = jobIdToJobStatusMap.get(jobId);
-
-            js.setJobName(jobId); // ?
+            P2jJobStatus js = jobIdToJobStatusMap.get(jobId);                                              
+            
+            js.setJobName(jobId);
 
             switch (job.getJobState()) {
                 case RUNNING: {
+                	
+                	if (job.getApplicationId() != null) {
+            			String rmAddress = ts.getPigProperties().getProperty("yarn.resourcemanager.address");
+            			String trackingURL = String.format("%s/cluster/app/%s", rmAddress, job.getApplicationId().toString());
+            			LOG.info(String.format("AM tracking url: [%s]", trackingURL));
+            			js.setTrackingUrl(trackingURL);
+            		}
+                	
                     Double progress = job.getVertexProgress().get(jobId);
                     if (progress != null) {
                         js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
@@ -500,16 +509,10 @@ public class BasicP2LClient implements P2LClient {
                         return js;
                     }
                 }
-                case FAILED: {
-                    Double progress = job.getVertexProgress().get(jobId);
-                    if (progress != null) {
-                        js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
-                        js.setMapProgress(progress.floatValue());
-                        js.setReduceProgress(progress.floatValue());
-                        js.setIsComplete(true);
-                        js.setIsSuccessful(false);
-                        return js;
-                    }
+                case FAILED: {                    
+                    js.setIsComplete(true);
+                    js.setIsSuccessful(false);
+                    return js;
                 }
                 default: {
                     return js;
