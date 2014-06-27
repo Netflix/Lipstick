@@ -145,11 +145,19 @@ project(':lipstick-console') {
                 exclude module: 'servlet-api-2.5'
         }
 
-        hadoopInJar( 'org.apache.hadoop:hadoop-core:' + (project.hasProperty('hadoopVersion') ? hadoopVersion : '1.1.0')) {
-                exclude module: 'hsqld'
-                exclude module: 'jetty'
-                exclude module: 'jsp-api-2.1'
-                exclude module: 'servlet-api-2.5'
+        hadoopInJar('org.apache.hadoop:hadoop-common:2.4.0') {
+                exclude module: 'jersey-api'
+                exclude module: 'jersey-json'
+                exclude module: 'jersey-guice'
+                exclude module: 'jersey-server'
+                exclude module: 'jersey-test-framework'
+        }
+        hadoopInJar('org.apache.hadoop:hadoop-mapreduce-client-jobclient:2.4.0') {
+                exclude module: 'jersey-api'
+                exclude module: 'jersey-json'
+                exclude module: 'jersey-guice'
+                exclude module: 'jersey-server'
+                exclude module: 'jersey-test-framework'
         }
 
         compile 'org.hibernate:hibernate-entitymanager:3.6.0.Final'

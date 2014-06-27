@@ -35,6 +35,7 @@ import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
+import org.apache.hadoop.mapreduce.JobCounter;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.pig.ExecType;
 import org.apache.pig.LipstickPigServer;
@@ -408,19 +409,18 @@ public class BasicP2LClient implements P2LClient {
             }
 
             JobID jobID = rj.getID();
-            js.setCounters(buildCountersMap(rj.getCounters()));
+            Counters counters = rj.getCounters();
+            js.setCounters(buildCountersMap(counters));
             js.setWarnings(getRunningJobWarnings(jobClient, jobID));
 
-            TaskReport[] mapTaskReport = jobClient.getMapTaskReports(jobID);
-            TaskReport[] reduceTaskReport = jobClient.getReduceTaskReports(jobID);
             js.setJobName(rj.getJobName());
             js.setTrackingUrl(rj.getTrackingURL());
             js.setIsComplete(rj.isComplete());
             js.setIsSuccessful(rj.isSuccessful());
             js.setMapProgress(rj.mapProgress());
             js.setReduceProgress(rj.reduceProgress());
-            js.setTotalMappers(mapTaskReport.length);
-            js.setTotalReducers(reduceTaskReport.length);
+            js.setTotalMappers((int)counters.findCounter(JobCounter.TOTAL_LAUNCHED_MAPS).getCounter());
+            js.setTotalReducers((int)counters.findCounter(JobCounter.TOTAL_LAUNCHED_REDUCES).getCounter());
             return js;
         } catch (IOException e) {
             LOG.error("Error getting job info.", e);
