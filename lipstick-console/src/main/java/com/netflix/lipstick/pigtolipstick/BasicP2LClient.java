@@ -480,16 +480,15 @@ public class BasicP2LClient implements P2LClient {
             
             js.setJobName(jobId);
 
+            if (job.getApplicationId() != null) {
+                String rmAddress = ts.getPigProperties().getProperty("yarn.resourcemanager.address");
+                String trackingURL = String.format("%s/cluster/app/%s", rmAddress, job.getApplicationId().toString());
+                LOG.info(String.format("AM tracking url: [%s]", trackingURL));
+                js.setTrackingUrl(trackingURL);
+            }
+            
             switch (job.getJobState()) {
-                case RUNNING: {
-                	
-                	if (job.getApplicationId() != null) {
-            			String rmAddress = ts.getPigProperties().getProperty("yarn.resourcemanager.address");
-            			String trackingURL = String.format("%s/cluster/app/%s", rmAddress, job.getApplicationId().toString());
-            			LOG.info(String.format("AM tracking url: [%s]", trackingURL));
-            			js.setTrackingUrl(trackingURL);
-            		}
-                	
+                case RUNNING: {                	                	                
                     Double progress = job.getVertexProgress().get(jobId);
                     if (progress != null) {
                         js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
@@ -553,11 +552,13 @@ public class BasicP2LClient implements P2LClient {
 
     public Map<String, P2jCounters> buildCountersMap(Map<String, Map<String, Long>> counters) {
         Map<String, P2jCounters> cMap = Maps.newHashMap();
-        for (Map.Entry<String, Map<String, Long>> group : counters.entrySet()) {
-            P2jCounters countersObj = new P2jCounters();
-            cMap.put(group.getKey(), countersObj);
-            for (Map.Entry<String, Long> counter : group.getValue().entrySet()) {
-                countersObj.getCounters().put(counter.getKey(), counter.getValue());
+        if (counters != null) {
+            for (Map.Entry<String, Map<String, Long>> group : counters.entrySet()) {
+                P2jCounters countersObj = new P2jCounters();
+                cMap.put(group.getKey(), countersObj);
+                for (Map.Entry<String, Long> counter : group.getValue().entrySet()) {
+                    countersObj.getCounters().put(counter.getKey(), counter.getValue());
+                }
             }
         }
         return cMap;
