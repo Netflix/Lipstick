@@ -35,6 +35,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobID;
+import org.apache.hadoop.mapred.JobInProgress;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -438,27 +439,31 @@ public class BasicP2LClient implements P2LClient {
                to the remote job tracker so we don't have access to this
                information. */
             try {
-                List<TaskReport> reports = Lists.newArrayList();
-                reports.addAll(Arrays.asList(jobClient.getMapTaskReports(jobID)));
-                reports.addAll(Arrays.asList(jobClient.getReduceTaskReports(jobID)));
-                for(TaskReport rpt : reports) {
-                    /* rpt.getStartTime() sometimes returns zero meaning it does
-                       not know what time it started so we need to prevent using
-                       this or we'll lose the actual lowest start time */
-                    long taskStartTime = rpt.getStartTime();
-                    if (0 != taskStartTime) {
-                        startTime = Math.min(startTime, taskStartTime);
+                if (!jobClient.getConf().getBoolean("pig.stats.notaskreport", false)) {            
+                    List<TaskReport> reports = Lists.newArrayList();
+                    reports.addAll(Arrays.asList(jobClient.getMapTaskReports(jobID)));
+                    reports.addAll(Arrays.asList(jobClient.getReduceTaskReports(jobID)));
+                    for(TaskReport rpt : reports) {
+                        /* rpt.getStartTime() sometimes returns zero meaning it does
+                           not know what time it started so we need to prevent using
+                           this or we'll lose the actual lowest start time */
+                        long taskStartTime = rpt.getStartTime();
+                        if (0 != taskStartTime) {
+                            startTime = Math.min(startTime, taskStartTime);
+                        }
+                        finishTime = Math.max(finishTime, rpt.getFinishTime());                
                     }
-                    finishTime = Math.max(finishTime, rpt.getFinishTime());
+                    P2jJobStatus jobStatus = jobIdToJobStatusMap.get(jobId);
+                    if (startTime < Long.MAX_VALUE) {
+                        jobStatus.setStartTime(startTime);
+                    }
+                    if (finishTime > Long.MIN_VALUE) {
+                        jobStatus.setFinishTime(finishTime);
+                    }
+                    LOG.info("Determined start and finish times for job " + jobId);
+                } else {
+                    LOG.info("Skipping determining start and finish times for job " + jobId);
                 }
-                P2jJobStatus jobStatus = jobIdToJobStatusMap.get(jobId);
-                if (startTime < Long.MAX_VALUE) {
-                    jobStatus.setStartTime(startTime);
-                }
-                if (finishTime > Long.MIN_VALUE) {
-                    jobStatus.setFinishTime(finishTime);
-                }
-                LOG.info("Determined start and finish times for job " + jobId);
             } catch (IOException e) {
                 LOG.error("Error getting job info.", e);
             }
@@ -529,7 +534,8 @@ public class BasicP2LClient implements P2LClient {
                 }
 
                 JobID jobID = rj.getID();
-                js.setCounters(buildCountersMap(rj.getCounters()));
+                Counters counters = rj.getCounters();
+                js.setCounters(buildCountersMap(counters));
                 js.setWarnings(getRunningJobWarnings(jobClient, jobID.toString()));
 
                 TaskReport[] mapTaskReport = jobClient.getMapTaskReports(jobID);
@@ -540,8 +546,8 @@ public class BasicP2LClient implements P2LClient {
                 js.setIsSuccessful(rj.isSuccessful());
                 js.setMapProgress(rj.mapProgress());
                 js.setReduceProgress(rj.reduceProgress());
-                js.setTotalMappers(mapTaskReport.length);
-                js.setTotalReducers(reduceTaskReport.length);
+                js.setTotalMappers((int)counters.findCounter(JobInProgress.Counter.TOTAL_LAUNCHED_MAPS).getCounter());
+                js.setTotalReducers((int)counters.findCounter(JobInProgress.Counter.TOTAL_LAUNCHED_REDUCES).getCounter());
                 return js;
             } catch (IOException e) {
                 LOG.error("Error getting job info.", e);
