@@ -159,13 +159,17 @@ public class JobWarnings {
     }
 
     public List<ReducerDuration> enumerateReducerRunTimesAccending(JobClient jobClient, String jobId) {
-        try {
-            TaskReport[] reduceTasks = jobClient.getReduceTaskReports(jobId);
-            return enumerateReducerRunTimesAccending(reduceTasks);
-        } catch (IOException e) {
-            log.error("Error getting reduce task reports, continuing", e);
-            return Lists.newArrayList();
+        if (!jobClient.getConf().getBoolean("pig.stats.notaskreport", false)) {
+            try {
+                TaskReport[] reduceTasks = jobClient.getReduceTaskReports(jobId);
+                return enumerateReducerRunTimesAccending(reduceTasks);
+            } catch (IOException e) {
+                log.error("Error getting reduce task reports, continuing", e);
+            }
+        } else {
+            log.info("Skipping reduce task reports for job " + jobId);
         }
+        return Lists.newArrayList();
     }
 
     /* Extract all running or completed reducer tasks for the job, their runtime and sort them
