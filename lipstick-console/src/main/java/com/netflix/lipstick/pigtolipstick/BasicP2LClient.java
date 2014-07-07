@@ -538,8 +538,6 @@ public class BasicP2LClient implements P2LClient {
                 js.setCounters(buildCountersMap(counters));
                 js.setWarnings(getRunningJobWarnings(jobClient, jobID.toString()));
 
-                TaskReport[] mapTaskReport = jobClient.getMapTaskReports(jobID);
-                TaskReport[] reduceTaskReport = jobClient.getReduceTaskReports(jobID);
                 js.setJobName(rj.getJobName());
                 js.setTrackingUrl(rj.getTrackingURL());
                 js.setIsComplete(rj.isComplete());
