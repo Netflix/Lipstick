@@ -343,16 +343,29 @@ public class TezPlanCalculator {
     	return id;
     }
     
-    protected void connectUnknownOperators() {        
+    protected void connectUnknownOperators() {
+        List<Long> disconnectedNodes = Lists.newArrayList();
         for (TezOperator op : tp) {
             Integer count = operatorCounts.get(op.getOperatorKey());
-            if (count < 1) {            
+            if (count < 1) {       
                 List<TezOperator> preds = tp.getPredecessors(op);
                 for (TezOperator pred : preds) {
                     String predJobId = pred.getOperatorKey().toString();
                     List<P2jLogicalRelationalOperator> p2jPreds = getOutBoundaryNodes(predJobId);
                     for (P2jLogicalRelationalOperator p2jPred : p2jPreds) {
-                        p2jPred.getSuccessors().addAll(getSourceNodeIds(op.getOperatorKey().toString()));
+                        Boolean isDisconnected = disconnectedNodes.contains(p2jPred.getId());
+                        if (operatorCounts.get(pred.getOperatorKey()) > 0 && !isDisconnected) {
+                            // reset successors (just once) if it's not an inserted op and yet it connects to an inserted op
+                            p2jPred.getSuccessors().clear();
+                            disconnectedNodes.add(p2jPred.getId());
+                        }
+                        List<String> sourceNodeIds = getSourceNodeIds(op.getOperatorKey().toString()); 
+                        for (String sourceNodeId : sourceNodeIds) {
+                            List<String> successors = p2jPred.getSuccessors();
+                            if (!successors.contains(sourceNodeId)) {
+                                successors.add(sourceNodeId);
+                            }
+                        }
                     }
                 }
 
@@ -360,12 +373,13 @@ public class TezPlanCalculator {
                 for (TezOperator succ : succs) {
                     String succJobId = succ.getOperatorKey().toString();
                     List<P2jLogicalRelationalOperator> p2jSuccs = getInBoundaryNodes(succJobId);
-                    for (P2jLogicalRelationalOperator p2jSucc : p2jSuccs) {
+                    for (P2jLogicalRelationalOperator p2jSucc : p2jSuccs) {                        
                         List<String> sinkIds = getSinkNodeIds(op.getOperatorKey().toString());
-                        p2jSucc.getPredecessors().addAll(sinkIds);
                         for (String sinkId : sinkIds) {
                             P2jLogicalRelationalOperator sink = p2jMap.get(sinkId);
-                            sink.getSuccessors().add(p2jSucc.getUid());
+                            if (!sink.getSuccessors().contains(p2jSucc.getUid())) {
+                                sink.getSuccessors().add(p2jSucc.getUid());
+                            }
                         }
                     }
                 }
