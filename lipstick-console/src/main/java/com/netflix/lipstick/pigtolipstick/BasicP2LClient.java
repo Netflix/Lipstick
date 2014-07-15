@@ -486,9 +486,8 @@ public class BasicP2LClient implements P2LClient {
             js.setJobName(jobId);
 
             if (job.getApplicationId() != null) {
-                String rmAddress = ts.getPigProperties().getProperty("yarn.resourcemanager.address");
-                String trackingURL = String.format("%s/cluster/app/%s", rmAddress, job.getApplicationId().toString());
-                LOG.info(String.format("AM tracking url: [%s]", trackingURL));
+                String rmAddress = ts.getPigProperties().getProperty("yarn.resourcemanager.webapp.address");
+                String trackingURL = String.format("http://%s/cluster/app/%s", rmAddress, job.getApplicationId().toString());
                 js.setTrackingUrl(trackingURL);
             }
             

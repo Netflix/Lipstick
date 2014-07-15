@@ -344,20 +344,20 @@ public class TezPlanCalculator {
     }
     
     protected void connectUnknownOperators() {
-        List<Long> disconnectedNodes = Lists.newArrayList();
+        Set<String> disconnectedNodes = Sets.newHashSet();
         for (TezOperator op : tp) {
             Integer count = operatorCounts.get(op.getOperatorKey());
             if (count < 1) {       
                 List<TezOperator> preds = tp.getPredecessors(op);
                 for (TezOperator pred : preds) {
-                    String predJobId = pred.getOperatorKey().toString();
+                    String predJobId = pred.getOperatorKey().toString();                    
                     List<P2jLogicalRelationalOperator> p2jPreds = getOutBoundaryNodes(predJobId);
                     for (P2jLogicalRelationalOperator p2jPred : p2jPreds) {
-                        Boolean isDisconnected = disconnectedNodes.contains(p2jPred.getId());
+                        Boolean isDisconnected = disconnectedNodes.contains(p2jPred.getUid());
                         if (operatorCounts.get(pred.getOperatorKey()) > 0 && !isDisconnected) {
                             // reset successors (just once) if it's not an inserted op and yet it connects to an inserted op
                             p2jPred.getSuccessors().clear();
-                            disconnectedNodes.add(p2jPred.getId());
+                            disconnectedNodes.add(p2jPred.getUid());
                         }
                         List<String> sourceNodeIds = getSourceNodeIds(op.getOperatorKey().toString()); 
                         for (String sourceNodeId : sourceNodeIds) {
