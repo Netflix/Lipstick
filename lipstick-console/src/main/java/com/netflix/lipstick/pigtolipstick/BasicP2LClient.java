@@ -56,6 +56,7 @@ import org.apache.pig.tools.pigstats.PigStats;
 import org.apache.pig.tools.pigstats.tez.TezScriptState;
 import org.apache.pig.tools.pigstats.mapreduce.MRScriptState;
 import org.apache.pig.impl.PigImplConstants;
+import org.apache.tez.dag.api.client.DAGStatus;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -490,35 +491,38 @@ public class BasicP2LClient implements P2LClient {
                 String trackingURL = String.format("http://%s/cluster/app/%s", rmAddress, job.getApplicationId().toString());
                 js.setTrackingUrl(trackingURL);
             }
-            
-            switch (job.getJobState()) {
-                case RUNNING: {                	                	                
-                    Double progress = job.getVertexProgress().get(jobId);
-                    if (progress != null) {
-                        js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
-                        js.setMapProgress(progress.floatValue());
-                        js.setReduceProgress(progress.floatValue());
-                        return js;
+
+            DAGStatus dagStatus = job.getDAGStatus();
+            if (dagStatus != null) {
+                switch (dagStatus.getState()) {
+                    case RUNNING: {
+                        Float progress = job.getVertexProgress().get(jobId);
+                        if (progress != null) {
+                            js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
+                            js.setMapProgress(progress);
+                            js.setReduceProgress(progress);
+                            return js;
+                        }
                     }
-                }
-                case SUCCESS: {
-                    Double progress = job.getVertexProgress().get(jobId);
-                    if (progress != null) {
-                        js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
-                        js.setMapProgress(progress.floatValue());
-                        js.setReduceProgress(progress.floatValue());
+                    case SUCCEEDED: {
+                        Float progress = job.getVertexProgress().get(jobId);
+                        if (progress != null) {
+                            js.setCounters(buildCountersMap(job.getVertexCounters(jobId)));
+                            js.setMapProgress(progress);
+                            js.setReduceProgress(progress);
+                            js.setIsComplete(true);
+                            js.setIsSuccessful(true);
+                            return js;
+                        }
+                    }
+                    case FAILED: {
                         js.setIsComplete(true);
-                        js.setIsSuccessful(true);
+                        js.setIsSuccessful(false);
                         return js;
                     }
-                }
-                case FAILED: {                    
-                    js.setIsComplete(true);
-                    js.setIsSuccessful(false);
-                    return js;
-                }
-                default: {
-                    return js;
+                    default: {
+                        return js;
+                    }
                 }
             }
         } else {
