@@ -139,7 +139,7 @@ project(':lipstick-console') {
          includeInJar('org.antlr:antlr:3.4')
          includeInJar('org.antlr:antlr-runtime:3.4')
          includeInJar('org.apache.commons:commons-math3:3.0')
-         includeInJar('org.apache.tez:tez-api:0.5.0-nflx-v1')
+         includeInJar('org.apache.tez:tez-api:0.4.1-incubating')
 
          pigInJar('org.apache.pig:pig:0.13.0-nflx-v0') {
                 exclude module: 'hsqld'
