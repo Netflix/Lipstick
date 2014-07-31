@@ -37,6 +37,7 @@ import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.pig.LipstickPigServer;
+import org.apache.pig.impl.plan.OperatorPlan;
 import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
@@ -134,13 +135,13 @@ public class BasicP2LClient implements P2LClient {
 
     @Override
     @SuppressWarnings("unused")
-    public void createPlan(MROperPlan plan) {
+    public void createPlan(OperatorPlan<?> plan) {
         if (plan != null && unopPlanGenerator != null && opPlanGenerator != null && context != null) {
             Configuration conf = null;
-            for (MapReduceOper job : plan) {
+            for (org.apache.pig.impl.plan.Operator<?> op : plan) {
                 if (conf == null) {
                     conf = new Configuration();
-                    MRScriptState.get().addSettingsToConf(job, conf);
+                    MRScriptState.get().addSettingsToConf((MapReduceOper)op, conf);
                     break;
                 }
             }
@@ -161,8 +162,8 @@ public class BasicP2LClient implements P2LClient {
                     script = StringUtils.join(ps.getScriptCache(), '\n');
                 }
 
-                MRPlanCalculator opPlan = new MRPlanCalculator(opPlanGenerator.getP2jPlan(), plan, p2lMap, opPlanGenerator.getReverseMap());
-                MRPlanCalculator unopPlan = new MRPlanCalculator(unopPlanGenerator.getP2jPlan(), plan, p2lMap, unopPlanGenerator.getReverseMap());
+                MRPlanCalculator opPlan = new MRPlanCalculator(opPlanGenerator.getP2jPlan(), (MROperPlan)plan, p2lMap, opPlanGenerator.getReverseMap());
+                MRPlanCalculator unopPlan = new MRPlanCalculator(unopPlanGenerator.getP2jPlan(), (MROperPlan)plan, p2lMap, unopPlanGenerator.getReverseMap());
 
                 P2jPlanPackage plans = new P2jPlanPackage(opPlan.getP2jPlan(), unopPlan.getP2jPlan(), script, planId);
 
@@ -230,7 +231,7 @@ public class BasicP2LClient implements P2LClient {
         // name is found. If so, look up it's scope and bind the jobId to
         // the DAGNode with the same scope.
         for (JobStats jobStats : jobGraph) {            
-            if (jobId.equals(jobStats.getJobId())) {
+            if (jobStats != null && jobId.equals(jobStats.getJobId())) {
                 LOG.info("jobStartedNotification - scope " + jobStats.getName() + " is jobId " + jobId);
                 P2jJobStatus jobStatus = new P2jJobStatus();
                 jobStatus.setJobId(jobId);

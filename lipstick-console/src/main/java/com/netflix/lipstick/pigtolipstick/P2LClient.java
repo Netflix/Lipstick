@@ -17,7 +17,7 @@ package com.netflix.lipstick.pigtolipstick;
 
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.LipstickPigServer;
-import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
+import org.apache.pig.impl.plan.OperatorPlan;
 import org.apache.pig.tools.pigstats.JobStats;
 
 import com.netflix.lipstick.P2jPlanGenerator;
@@ -35,7 +35,7 @@ public interface P2LClient {
      *
      * @param plan
      */
-    void createPlan(MROperPlan plan);
+    void createPlan(OperatorPlan<?> plan);
 
     /**
      * Sets the unoptimized and optimized plan generators.
