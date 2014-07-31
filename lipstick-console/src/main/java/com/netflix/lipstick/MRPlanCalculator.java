@@ -28,9 +28,7 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOpera
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator.OriginalLocation;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.PODemux;
-import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POJoinPackage;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLocalRearrange;
-import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POMultiQueryPackage;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPreCombinerLocalRearrange;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POSplit;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
@@ -199,11 +197,8 @@ public class MRPlanCalculator {
 
         // special cases - find other operators inside these that need to be
         // assigned
-
-        if (pop instanceof POJoinPackage) {
-            POJoinPackage jpop = (POJoinPackage) pop;
-            assignMRStage(jpop.getForEach(), jid, stepType);
-        } else if (pop instanceof POLocalRearrange) {
+       
+        if (pop instanceof POLocalRearrange) {
             for (PhysicalPlan ipl : ((POLocalRearrange) pop).getPlans()) {
                 assignMRStagesToPlan(ipl, jid, stepType);
             }
@@ -214,11 +209,7 @@ public class MRPlanCalculator {
         } else if (pop instanceof POPreCombinerLocalRearrange) {
             for (PhysicalPlan ipl : ((POPreCombinerLocalRearrange) pop).getPlans()) {
                 assignMRStagesToPlan(ipl, jid, stepType);
-            }
-        } else if (pop instanceof POMultiQueryPackage) {
-            for (PhysicalOperator iop : ((POMultiQueryPackage) pop).getPackages()) {
-                assignMRStage(iop, jid, stepType);
-            }
+            }       
         } else if (pop instanceof POSplit) {
             for (PhysicalPlan ipl : ((POSplit) pop).getPlans()) {
                 assignMRStagesToPlan(ipl, jid, stepType);

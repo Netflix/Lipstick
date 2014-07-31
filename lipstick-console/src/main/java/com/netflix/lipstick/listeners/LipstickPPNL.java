@@ -23,7 +23,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.pig.LipstickPigServer;
 import org.apache.pig.impl.PigContext;
-import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
+import org.apache.pig.impl.plan.OperatorPlan;
 import org.apache.pig.tools.pigstats.JobStats;
 import org.apache.pig.tools.pigstats.OutputStats;
 import org.apache.pig.tools.pigstats.PigProgressNotificationListener;
@@ -151,7 +151,7 @@ public class LipstickPPNL implements PigProgressNotificationListener {
      * .mapReduceLayer.plans.MROperPlan)
      */
     @Override
-    public void initialPlanNotification(String scriptId, MROperPlan plan) {
+    public void initialPlanNotification(String scriptId, OperatorPlan plan) {
         try {
             if (clientIsActive()) {
                 for (P2LClient client : clients) {
