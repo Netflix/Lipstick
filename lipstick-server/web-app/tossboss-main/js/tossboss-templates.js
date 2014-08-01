@@ -16,6 +16,19 @@
 /** tossboss-templates.js
  */
 
+function hhmmss(ms) {
+    var seconds = parseInt(ms / 1000);
+    var hh = Math.floor(seconds / 3600);
+    var mm = Math.floor((seconds - (hh * 3600)) / 60);
+    var ss = seconds - (hh * 3600) - (mm * 60);
+
+    if (hh < 10) {hh = '0' + hh;}
+    if (mm < 10) {mm = '0' + mm;}
+    if (ss < 10) {ss = '0' + ss;}
+
+    return hh + ':' + mm + ':' + ss;
+};
+
 ;Templates = {
 
 modalTmpl: ' \
@@ -185,7 +198,7 @@ mrJobsTmpl: ' \
                 <td></td> \
             <% } %> \
             <% if ((mrJobInfo.runData.startTime) && (mrJobInfo.runData.finishTime)) { %> \
-              <% var duration = moment().startOf("day").add("ms", (mrJobInfo.runData.finishTime - mrJobInfo.runData.startTime)) %> \
+              <% var duration = hhmmss(mrJobInfo.runData.finishTime - mrJobInfo.runData.startTime) %> \
               <td><%= duration.format("HH:mm:ss") %></td> \
             <% } else { %> \
               <td>--</td> \
