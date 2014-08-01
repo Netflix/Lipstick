@@ -199,7 +199,7 @@ mrJobsTmpl: ' \
             <% } %> \
             <% if ((mrJobInfo.runData.startTime) && (mrJobInfo.runData.finishTime)) { %> \
               <% var duration = hhmmss(mrJobInfo.runData.finishTime - mrJobInfo.runData.startTime) %> \
-              <td><%= duration.format("HH:mm:ss") %></td> \
+              <td><%= duration %></td> \
             <% } else { %> \
               <td>--</td> \
             <% } %> \
