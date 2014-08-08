@@ -66,7 +66,7 @@ public class P2jJobStatus {
         this.id = id;
     }
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     public Map<String, P2jCounters> getCounters() {
         return counters;
     }
@@ -75,7 +75,7 @@ public class P2jJobStatus {
         this.counters = counters;
     }
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     public Map<String, P2jWarning> getWarnings() {
         return warnings;
     }
