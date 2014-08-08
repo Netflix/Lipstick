@@ -89,7 +89,7 @@ public class P2jPlanStatus {
         return jobStatusMap.keySet();
     }
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     public Map<String, P2jJobStatus> getJobStatusMap() {
         return jobStatusMap;
     }
