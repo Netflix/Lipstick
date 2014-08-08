@@ -393,40 +393,11 @@ public class BasicP2LClient implements P2LClient {
         }
     }
 
-    protected Long getStartTime() {
-        try {
-            PigStats ps = PigStats.get();
-            java.lang.reflect.Field startTimeField = PigStats.get().getClass().getSuperclass().getDeclaredField("startTime");
-            startTimeField.setAccessible(true);
-            return (Long)startTimeField.get(ps);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Long.MAX_VALUE;
-        }
-    }
-
-    protected Long getEndTime() {
-        try {
-            PigStats ps = PigStats.get();
-            java.lang.reflect.Field endTimeField = PigStats.get().getClass().getSuperclass().getDeclaredField("endTime");
-            endTimeField.setAccessible(true);
-            return (Long)endTimeField.get(ps);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Long.MIN_VALUE;
-        }
-    }
-        
     protected void updatePlanStatusForCompletedJobId(P2jPlanStatus planStatus, String jobId) {
         LOG.info("Updating plan status for completed job " + jobId);
         updatePlanStatusForJobId(planStatus, jobId);
 
-        if (exectype.startsWith("tez")) {
-            // All vertices get the same start and end time
-            P2jJobStatus jobStatus = jobIdToJobStatusMap.get(jobId);
-            jobStatus.setStartTime(getStartTime());
-            jobStatus.setFinishTime(getEndTime());
-        } else {
+        if (!exectype.startsWith("tez")) {
             JobClient jobClient = PigStats.get().getJobClient();
             JobID jobID = JobID.forName(jobId);
             long startTime = Long.MAX_VALUE;
