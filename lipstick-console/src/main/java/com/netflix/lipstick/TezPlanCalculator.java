@@ -15,6 +15,7 @@
  */
 package com.netflix.lipstick;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -58,6 +59,7 @@ public class TezPlanCalculator {
     
     // Holds, for each TezOperator (Vertex), the number of logical operators
     protected Map<OperatorKey, Integer> operatorCounts;
+    protected boolean physicalOnly;
     
     public TezPlanCalculator(P2jPlan p2jPlan,
                             TezOperPlan tp,
@@ -69,6 +71,7 @@ public class TezPlanCalculator {
         this.p2jPlan = p2jPlan;
         this.reverseMap = reverseMap;
         this.operatorCounts = Maps.newHashMap();
+        this.physicalOnly = physicalOnlyPlan(tp);
         p2jPlan.setPlan(assignVerticesToNodes());        
     }
 
@@ -77,9 +80,16 @@ public class TezPlanCalculator {
     }
     
     protected Map<String, P2jLogicalRelationalOperator> assignVerticesToNodes() {
+        
+        if (physicalOnly) {
+            p2jMap.clear();
+        }
+        
         for (TezOperator job : tp) {
             operatorCounts.put(job.getOperatorKey(), 0);
-            assignVerticesToPlan(job.plan, job.getOperatorKey());
+            if (!physicalOnly) {
+                assignVerticesToPlan(job.plan, job.getOperatorKey());
+            } 
         }        
 
         assignVerticesToUnknownNodes();
@@ -96,7 +106,16 @@ public class TezPlanCalculator {
         p2jPlan.setPlan(p2jMap);
         return p2jMap;
     }
-
+    
+    protected boolean physicalOnlyPlan(TezOperPlan tezPlan) {
+        for (TezOperator job : tezPlan) {
+            if (job.isVertexGroup()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     protected void assignVerticesToPlan(PhysicalPlan pp, OperatorKey job) {
         for (PhysicalOperator pop : pp) {
             assignVertex(pop, job);
@@ -373,20 +392,64 @@ public class TezPlanCalculator {
 
                 List<TezOperator> succs = tp.getSuccessors(op);
                 if (succs != null) {
+                    String from = op.getOperatorKey().toString();
+                    List<String> storePreds = getSinkNodeIds(from);
                     for (TezOperator succ : succs) {
-                        String succJobId = succ.getOperatorKey().toString();
-                        List<P2jLogicalRelationalOperator> p2jSuccs = getInBoundaryNodes(succJobId);
-                        for (P2jLogicalRelationalOperator p2jSucc : p2jSuccs) {
-                            List<String> sinkIds = getSinkNodeIds(op.getOperatorKey().toString());
-                            for (String sinkId : sinkIds) {
-                                P2jLogicalRelationalOperator sink = p2jMap.get(sinkId);
-                                if (!sink.getSuccessors().contains(p2jSucc.getUid())) {
-                                    sink.getSuccessors().add(p2jSucc.getUid());
-                                }
+                        // Handle UnionOptimization
+                        if (succ.isVertexGroup()) {
+                            // In this case there are more ops, other than a store
+                            // after the VertexGroup - simply bypass the VertexGroup
+                            // and connect operators accordingly.
+                            List<TezOperator> realSuccs = tp.getSuccessors(succ);
+                            if (realSuccs != null && realSuccs.size() > 0) {
+                                TezOperator realSucc = tp.getSuccessors(succ).get(0);
+                                String to = realSucc.getOperatorKey().toString();
+                                connect(from, to);
+                            } else {
+                                // In this case there are no more ops after the union -
+                                // special case of storing immediately after a union.
+                                // Here we get the store referenced and add it to the 
+                                // associated vertex.
+                                POStore store = succ.getVertexGroupInfo().getStore();
+                                P2jLogicalRelationalOperator p2jStore = getOpForStore(store);
+                                if (p2jStore == null) {
+                                    Long storeId = nextP2jId();                                    
+                                    p2jStore = POJsonAdaptor.translateOp(from, storeId.toString(), store, new ArrayList<String>(), storePreds);
+                                    boolean validStore = false;
+                                    for (String storePred : storePreds) {
+                                        P2jLogicalRelationalOperator p2jStorePred = p2jMap.get(storePred);
+                                        if (
+                                                !p2jStorePred.getOperator().equals(p2jStore.getOperator()) && 
+                                                !p2jStorePred.getSuccessors().contains(p2jStore.getUid())) {
+                                            validStore = true;
+                                            p2jStorePred.getSuccessors().add(p2jStore.getUid());                                            
+                                        } 
+                                    }
+                                    if (validStore) {
+                                        p2jMap.put(storeId.toString(), p2jStore);
+                                    }
+                                }                                                                
                             }
+                        } else {
+                            // Simple case, no unions
+                            String to = succ.getOperatorKey().toString();
+                            connect(from, to);
                         }
                     }
                 }
+            }
+        }
+    }
+    
+    protected void connect(String fromId, String toId) {
+        List<P2jLogicalRelationalOperator> p2jSuccs = getInBoundaryNodes(toId);
+        List<String> sinkIds = getSinkNodeIds(fromId);
+        for (P2jLogicalRelationalOperator p2jSucc : p2jSuccs) {
+            for (String sinkId : sinkIds) {
+                P2jLogicalRelationalOperator sink = p2jMap.get(sinkId);
+                if (!sink.getSuccessors().contains(p2jSucc.getUid())) {
+                    sink.getSuccessors().add(p2jSucc.getUid());
+                } 
             }
         }
     }
