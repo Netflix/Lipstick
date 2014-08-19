@@ -62,7 +62,7 @@ public class POJsonAdaptor {
         return map;
 	}
 	
-	protected String getTypeString(byte type) {
+	public static String getTypeString(byte type) {
 	    String result = null;
 	    switch (type) {	        
 	    case DataType.TUPLE:
@@ -78,7 +78,7 @@ public class POJsonAdaptor {
 	    return result;
 	}
 	
-	protected String translateInnerPlan(PhysicalPlan plan) {
+	public static String translateInnerPlan(PhysicalPlan plan) {
 	    StringBuilder result = new StringBuilder();
 	    if (plan.getLeaves().size() > 0) {
 	        PhysicalOperator op = plan.getLeaves().get(0);
@@ -95,8 +95,8 @@ public class POJsonAdaptor {
 	    return result.toString();
 	}
 	
-	protected P2jLogicalRelationalOperator translateOperator(String id, PhysicalOperator op) {
-		P2jLogicalRelationalOperator p2jOp = new P2jLogicalRelationalOperator();
+	public static P2jLogicalRelationalOperator translateOp(String jobId, String id, PhysicalOperator op, List<String> successors, List<String> predecessors) {
+	    P2jLogicalRelationalOperator p2jOp = new P2jLogicalRelationalOperator();
 		p2jOp.setUid(id);
 		p2jOp.setAlias(op.getAlias() != null ? op.getAlias() : "{tez-inserted-op}");		
 		p2jOp.setOperator(op.getClass().getSimpleName());
@@ -118,7 +118,14 @@ public class POJsonAdaptor {
 		    p2jOp.setSchemaString(sb.toString());
 		}
 		
-		List<String> successors = Lists.newArrayList();
+		p2jOp.setSuccessors(successors);
+		p2jOp.setPredecessors(predecessors);
+		
+		return p2jOp;
+	}
+	
+	protected P2jLogicalRelationalOperator translateOperator(String id, PhysicalOperator op) {
+	    List<String> successors = Lists.newArrayList();
 		List<String> predecessors = Lists.newArrayList();
 		if (pp.getSuccessors(op) != null) {
 			for (PhysicalOperator po : pp.getSuccessors(op)) {
@@ -130,11 +137,7 @@ public class POJsonAdaptor {
 				predecessors.add(reverseMap.get(po));
 			}
 		}
-		
-		p2jOp.setSuccessors(successors);
-		p2jOp.setPredecessors(predecessors);
-		
-		return p2jOp;
+		return translateOp(jobId, id, op, successors, predecessors);
 	}
 	
 	public List<String> getSinks() {
