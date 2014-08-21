@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOperators.ConstantExpression;
@@ -14,6 +15,7 @@ import org.apache.pig.data.DataType;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.netflix.lipstick.model.operators.P2jLogicalRelationalOperator;
 import com.netflix.lipstick.model.operators.elements.SchemaElement;
 
@@ -78,7 +80,7 @@ public class POJsonAdaptor {
 	    return result;
 	}
 	
-	public static String translateInnerPlan(PhysicalPlan plan) {
+	public static String translateInnerPlan(PhysicalPlan plan, Set<String> aliases) {
 	    StringBuilder result = new StringBuilder();
 	    if (plan.getLeaves().size() > 0) {
 	        PhysicalOperator op = plan.getLeaves().get(0);
@@ -87,8 +89,16 @@ public class POJsonAdaptor {
 	            alias = ((POUserFunc)op).getFunc().getClass().getName();
 	        } else {
 	            alias = op.getClass().getSimpleName();
-	        }	        
-	        result.append(alias.replaceAll("\\.", "_"));
+	        }
+	        alias = alias.replaceAll("\\.|\\$", "_");
+	        if (!aliases.add(alias)) {
+	            int i = 0;
+	            while (!aliases.add(alias+i)) {
+	                i++;
+	            }
+	            alias = alias+i;
+	        }
+	        result.append(alias);
 	        result.append(":");
 	        result.append(getTypeString(op.getResultType()));
 	    }
@@ -107,9 +117,10 @@ public class POJsonAdaptor {
 		    StringBuilder sb = new StringBuilder();
 		    sb.append("(");
 		    Iterator<PhysicalPlan> it = innerPlans.iterator();
+		    Set<String> aliases = Sets.newHashSet();
 		    while (it.hasNext()) {
 		        PhysicalPlan innerPlan = it.next();
-		        sb.append(translateInnerPlan(innerPlan));
+		        sb.append(translateInnerPlan(innerPlan, aliases));
 		        if (it.hasNext()) {
 		            sb.append(",");
 		        }
