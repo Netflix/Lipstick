@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
-import org.apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOperators.ConstantExpression;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOperators.POUserFunc;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POForEach;
@@ -17,7 +16,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.netflix.lipstick.model.operators.P2jLogicalRelationalOperator;
-import com.netflix.lipstick.model.operators.elements.SchemaElement;
 
 /**
  * Translates a PhysicalPlan to a map of p2jLogicalRelationalOperators.

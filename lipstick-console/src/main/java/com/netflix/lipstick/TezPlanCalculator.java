@@ -53,25 +53,14 @@ public class TezPlanCalculator {
 
     protected TezOperPlan tp;
     protected P2jPlan p2jPlan;
-    protected Map<PhysicalOperator, Operator> phy2LogMap;
     protected Map<String, P2jLogicalRelationalOperator> p2jMap;
-    protected Map<Operator, String> reverseMap;
+
     
-    // Holds, for each TezOperator (Vertex), the number of logical operators
-    protected Map<OperatorKey, Integer> operatorCounts;
-    protected boolean physicalOnly;
-    
-    public TezPlanCalculator(P2jPlan p2jPlan,
-                            TezOperPlan tp,
-                            Map<PhysicalOperator, Operator> phy2LogMap,
-                            Map<Operator, String> reverseMap) {
+    public TezPlanCalculator(P2jPlan p2jPlan, TezOperPlan tp) {
         this.tp = tp;
-        this.phy2LogMap = phy2LogMap;
         this.p2jMap = p2jPlan.getPlan();
         this.p2jPlan = p2jPlan;
-        this.reverseMap = reverseMap;
-        this.operatorCounts = Maps.newHashMap();
-        this.physicalOnly = physicalOnlyPlan(tp);
+        p2jMap.clear(); // We're going to use Physical Operators only; remove what's there
         p2jPlan.setPlan(assignVerticesToNodes());        
     }
 
@@ -81,206 +70,16 @@ public class TezPlanCalculator {
     
     protected Map<String, P2jLogicalRelationalOperator> assignVerticesToNodes() {
         
-        if (physicalOnly) {
-            p2jMap.clear();
+        for (TezOperator job : tp) {
+            assignPhysicalOperators(job);
         }
         
-        for (TezOperator job : tp) {
-            operatorCounts.put(job.getOperatorKey(), 0);
-            if (!physicalOnly) {
-                assignVerticesToPlan(job.plan, job.getOperatorKey());
-            } 
-        }        
-
-        assignVerticesToUnknownNodes();
-                
-        for (TezOperator job : tp) {
-            Integer count = operatorCounts.get(job.getOperatorKey());
-            if (count < 1) {
-                appendUnknownOperators(job.getOperatorKey());
-            }
-        }
-        
-        connectUnknownOperators();
+        connectPhysicalOperators();
 
         p2jPlan.setPlan(p2jMap);
         return p2jMap;
     }
-    
-    protected boolean physicalOnlyPlan(TezOperPlan tezPlan) {
-        for (TezOperator job : tezPlan) {
-            if (job.isVertexGroup()) {
-                return true;
-            }
-        }
-        return false;
-    }
-    
-    protected void assignVerticesToPlan(PhysicalPlan pp, OperatorKey job) {
-        for (PhysicalOperator pop : pp) {
-            assignVertex(pop, job);
-        }
-    }
-
-    protected P2jLogicalRelationalOperator getOpForStore(POStore pop) {
-        FileSpec pofs = pop.getSFile();
-        for (Entry<String, P2jLogicalRelationalOperator> entry : p2jMap.entrySet()) {
-            if (entry.getValue() instanceof P2jLOStore) {
-                P2jLOStore store = (P2jLOStore) entry.getValue();
-                if (store.getStorageLocation().equals(pofs.getFileName())
-                    && pofs.getFuncName().endsWith(store.getStorageFunction())) {
-                    return store;
-                }
-            }
-        }
-        return null;
-    }
-     
-    protected P2jLogicalRelationalOperator getOpForLoad(POLoad pop) {
-        FileSpec pofs = pop.getLFile();
-        for (Entry<String, P2jLogicalRelationalOperator> entry : p2jMap.entrySet()) {
-            if (entry.getValue() instanceof P2jLOLoad) {
-                P2jLOLoad load = (P2jLOLoad) entry.getValue();                
-                if (load.getAlias().equals(pop.getAlias()) && load.getStorageLocation().equals(pofs.getFileName())
-                    && pofs.getFuncName().endsWith(load.getStorageFunction())) {
-                    return load;
-                }
-            }
-        }
-        return null;
-    }
-    
-    protected void assignVertex(PhysicalOperator pop, OperatorKey job) {
-
-    	String jid = job.toString();
-    	
-        // special cases - find other operators inside these that need to be
-        // assigned
-        if (pop instanceof POLocalRearrange) {
-            for (PhysicalPlan ipl : ((POLocalRearrange) pop).getPlans()) {
-                assignVerticesToPlan(ipl, job);
-            }
-        } else if (pop instanceof PODemux) {
-            for (PhysicalPlan ipl : ((PODemux) pop).getPlans()) {
-                assignVerticesToPlan(ipl, job);
-            }
-        } else if (pop instanceof POPreCombinerLocalRearrange) {
-            for (PhysicalPlan ipl : ((POPreCombinerLocalRearrange) pop).getPlans()) {
-                assignVerticesToPlan(ipl, job);
-            }       
-        } else if (pop instanceof POSplit) {
-            for (PhysicalPlan ipl : ((POSplit) pop).getPlans()) {
-                assignVerticesToPlan(ipl, job);
-            }
-        }
-
-        String stepTypeString = "TezVertex";
         
-        if (pop instanceof POStore) {
-            P2jLogicalRelationalOperator node = getOpForStore((POStore) pop);
-            if (node != null) {
-            	operatorCounts.put(job, operatorCounts.get(job)+1);
-                node.setMapReduce(jid, stepTypeString);
-                return;
-            }
-        } else if (pop instanceof POLoad) {
-            P2jLogicalRelationalOperator node = getOpForLoad((POLoad) pop);
-            if (node != null) {
-            	operatorCounts.put(job, operatorCounts.get(job)+1);
-                node.setMapReduce(jid, stepTypeString);
-                return;
-            }
-        } else if (phy2LogMap.containsKey(pop) && reverseMap.containsKey(phy2LogMap.get(pop))) {
-            String nodeId = reverseMap.get(phy2LogMap.get(pop));
-            P2jLogicalRelationalOperator node = p2jMap.get(nodeId);
-            operatorCounts.put(job, operatorCounts.get(job)+1);
-            node.setMapReduce(jid, stepTypeString);
-            LOG.debug("Found key for: " + pop.toString());
-            return;
-        } 
-        LOG.debug("*** Couldn't assign " + pop.getClass() + pop);
-    }
-
-    protected void assignVerticesToUnknownNodes() {
-        for (P2jLogicalRelationalOperator node : p2jMap.values()) {
-            if (node.getMapReduce() == null || node.getMapReduce().getJobId() == null) {                
-                String jobId = resolveJobForNode(node);
-                if (jobId != null) {
-                	incrementOperatorCount(jobId, 1);
-                    node.setMapReduce(jobId, "TezVertex");
-                }
-            }
-        }
-    }
-
-    protected String resolveJobForNode(P2jLogicalRelationalOperator node) {
-        Set<String> pred = generateScopesForNode(node, new ScopeGetter() {
-            @Override
-            public List<String> getScopes(P2jLogicalRelationalOperator node) {
-                return node.getPredecessors();
-            }
-        });
-        Set<String> succ = generateScopesForNode(node, new ScopeGetter() {
-            @Override
-            public List<String> getScopes(P2jLogicalRelationalOperator node) {
-                return node.getSuccessors();
-            }
-        });
-        SetView<String> intersect = Sets.intersection(pred, succ);
-        if (intersect.size() > 0) {
-            return intersect.iterator().next();
-        } else if (succ.size() == 1) {
-            return succ.iterator().next();
-        } else if (pred.size() > 0) {
-            return pred.iterator().next();
-        } else if (succ.size() > 0) {
-            return succ.iterator().next();
-        }
-        return null;
-    }
-    
-    /**
-     * Increment the number of logical operators that map to a given TezOperator's
-     * plan.
-     * @param jobId The jobId of the TezOperator to update
-     * @param update The integer amount to update the TezOperator's count
-     */
-    protected void incrementOperatorCount(String jobId, Integer update) {
-    	for (OperatorKey key : operatorCounts.keySet()) {
-    		if (key.toString().equals(jobId)) {
-    			operatorCounts.put(key, operatorCounts.get(key) + update);
-    			return;
-    		}
-    	}
-    }
-    
-    interface ScopeGetter {
-        List<String> getScopes(P2jLogicalRelationalOperator node);
-    }
-
-    /**
-     * Generate the set of map reduce jobs accessible from node in the direction
-     * defined by ScopeGetter.
-     *
-     * @param node
-     *            the P2jLogicalRelationalOperator to search from
-     * @param scopeGetter
-     *            the ScopeGetter defining the direction of the search
-     * @return a set of map/reduce job scopes
-     */
-    protected Set<String> generateScopesForNode(P2jLogicalRelationalOperator node, ScopeGetter scopeGetter) {
-        Set<String> scopes = Sets.newHashSet();
-        for (String id : scopeGetter.getScopes(node)) {
-            P2jLogicalRelationalOperator job = p2jMap.get(id);
-            if (job.getMapReduce() != null && job.getMapReduce().getJobId() != null) {
-                scopes.add(job.getMapReduce().getJobId());
-            } else {
-                scopes.addAll(generateScopesForNode(job, scopeGetter));
-            }
-        }
-        return scopes;
-    }
-
     protected List<P2jLogicalRelationalOperator> p2jOpsForJobId(String jobId) {
     	List<P2jLogicalRelationalOperator> result = Lists.newArrayList();
     	for (P2jLogicalRelationalOperator op : p2jMap.values()) {
@@ -362,29 +161,19 @@ public class TezPlanCalculator {
     	return id;
     }
     
-    protected void connectUnknownOperators() {
-        Set<String> disconnectedNodes = Sets.newHashSet();
+    protected void connectPhysicalOperators() {
         for (TezOperator op : tp) {
-            Integer count = operatorCounts.get(op.getOperatorKey());
-            if (count < 1) {       
-                List<TezOperator> preds = tp.getPredecessors(op);
-                if (preds != null) {
-                    for (TezOperator pred : preds) {
-                        String predJobId = pred.getOperatorKey().toString();
-                        List<P2jLogicalRelationalOperator> p2jPreds = getOutBoundaryNodes(predJobId);
-                        for (P2jLogicalRelationalOperator p2jPred : p2jPreds) {
-                            Boolean isDisconnected = disconnectedNodes.contains(p2jPred.getUid());
-                            if (operatorCounts.get(pred.getOperatorKey()) > 0 && !isDisconnected) {
-                                // reset successors (just once) if it's not an inserted op and yet it connects to an inserted op
-                                p2jPred.getSuccessors().clear();
-                                disconnectedNodes.add(p2jPred.getUid());
-                            }
-                            List<String> sourceNodeIds = getSourceNodeIds(op.getOperatorKey().toString()); 
-                            for (String sourceNodeId : sourceNodeIds) {
-                                List<String> successors = p2jPred.getSuccessors();
-                                if (!successors.contains(sourceNodeId)) {
-                                    successors.add(sourceNodeId);
-                                }
+            List<TezOperator> preds = tp.getPredecessors(op);
+            if (preds != null) {
+                for (TezOperator pred : preds) {
+                    String predJobId = pred.getOperatorKey().toString();
+                    List<P2jLogicalRelationalOperator> p2jPreds = getOutBoundaryNodes(predJobId);
+                    for (P2jLogicalRelationalOperator p2jPred : p2jPreds) {
+                        List<String> sourceNodeIds = getSourceNodeIds(op.getOperatorKey().toString()); 
+                        for (String sourceNodeId : sourceNodeIds) {
+                            List<String> successors = p2jPred.getSuccessors();
+                            if (!successors.contains(sourceNodeId)) {
+                                successors.add(sourceNodeId);
                             }
                         }
                     }
@@ -411,24 +200,22 @@ public class TezPlanCalculator {
                                 // Here we get the store referenced and add it to the 
                                 // associated vertex.
                                 POStore store = succ.getVertexGroupInfo().getStore();
-                                P2jLogicalRelationalOperator p2jStore = getOpForStore(store);
-                                if (p2jStore == null) {
-                                    Long storeId = nextP2jId();                                    
-                                    p2jStore = POJsonAdaptor.translateOp(from, storeId.toString(), store, new ArrayList<String>(), storePreds);
-                                    boolean validStore = false;
-                                    for (String storePred : storePreds) {
-                                        P2jLogicalRelationalOperator p2jStorePred = p2jMap.get(storePred);
-                                        if (
-                                                !p2jStorePred.getOperator().equals(p2jStore.getOperator()) && 
-                                                !p2jStorePred.getSuccessors().contains(p2jStore.getUid())) {
-                                            validStore = true;
-                                            p2jStorePred.getSuccessors().add(p2jStore.getUid());                                            
-                                        } 
-                                    }
-                                    if (validStore) {
-                                        p2jMap.put(storeId.toString(), p2jStore);
-                                    }
-                                }                                                                
+                                Long storeId = nextP2jId();                                    
+                                P2jLogicalRelationalOperator p2jStore = POJsonAdaptor.translateOp(
+                                        from, storeId.toString(), store, new ArrayList<String>(), storePreds);
+                                boolean validStore = false;
+                                for (String storePred : storePreds) {
+                                    P2jLogicalRelationalOperator p2jStorePred = p2jMap.get(storePred);
+                                    if (
+                                            !p2jStorePred.getOperator().equals(p2jStore.getOperator()) && 
+                                            !p2jStorePred.getSuccessors().contains(p2jStore.getUid())) {
+                                        validStore = true;
+                                        p2jStorePred.getSuccessors().add(p2jStore.getUid());                                            
+                                    } 
+                                }
+                                if (validStore) {
+                                    p2jMap.put(storeId.toString(), p2jStore);
+                                }
                             }
                         } else {
                             // Simple case, no unions
@@ -454,11 +241,9 @@ public class TezPlanCalculator {
         }
     }
     
-    protected void appendUnknownOperators(OperatorKey job) {
-    	TezOperator op = tp.getOperator(job);
-    	
+    protected void assignPhysicalOperators(TezOperator job) {    	
     	// First, get p2jPlan representation of TezOperator's physical plan
-    	POJsonAdaptor pja = new POJsonAdaptor(job.toString(), nextP2jId(), op.plan);
+    	POJsonAdaptor pja = new POJsonAdaptor(job.getOperatorKey().toString(), nextP2jId(), job.plan);
     	Map<String, P2jLogicalRelationalOperator> opPlan = pja.getPlan();
     	
     	// Next, add all the new operators to the existing plan
