@@ -186,8 +186,8 @@ public class BasicP2LClient implements P2LClient {
 
                 P2jPlanPackage plans = null;
                 if (exectype.startsWith("tez")) {
-                    TezPlanCalculator opPlan = new TezPlanCalculator(opPlanGenerator.getP2jPlan(), (TezOperPlan)plan, p2lMap, opPlanGenerator.getReverseMap());
-                    TezPlanCalculator unopPlan = new TezPlanCalculator(unopPlanGenerator.getP2jPlan(), (TezOperPlan)plan, p2lMap, unopPlanGenerator.getReverseMap());
+                    TezPlanCalculator opPlan = new TezPlanCalculator(opPlanGenerator.getP2jPlan(), (TezOperPlan)plan);
+                    TezPlanCalculator unopPlan = new TezPlanCalculator(unopPlanGenerator.getP2jPlan(), (TezOperPlan)plan);
                     plans = new P2jPlanPackage(opPlan.getP2jPlan(), unopPlan.getP2jPlan(), script, planId);
                 } else {
                     MRPlanCalculator opPlan = new MRPlanCalculator(opPlanGenerator.getP2jPlan(), (MROperPlan)plan, p2lMap, opPlanGenerator.getReverseMap());
