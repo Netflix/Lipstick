@@ -137,9 +137,6 @@ public class LipstickPigServer extends PigServer {
     protected PigStats launchPlan(LogicalPlan lp, String jobName) throws ExecException, FrontendException {
         if (ppnl != null) {
             try {
-                // Get preoptimized plan
-                unoptimizedPlanGenerator = new P2jPlanGenerator(lp);
-
                 // Get optimized plan by compiling it with the appropriate execution engine
                 LOG.info("Compiling and optimizing logical plan...");
                 ((HExecutionEngine)getPigContext().getExecutionEngine()).compile(lp, getPigContext().getProperties());
@@ -154,18 +151,33 @@ public class LipstickPigServer extends PigServer {
         return super.launchPlan(lp, jobName);
     }
 
-    /**
-     * Returns the LogicalPlan contained in the current DAG with the given alias.
-     *
-     * @param alias
-     * @return
-     * @throws IOException
-     */
-    public LogicalPlan getLP(String alias) throws IOException {
-        return getCurrentDAG().getPlan(alias);
-    }
-
     public List<String> getScriptCache() {
         return getCurrentDAG().getScriptCache();
     }
+    
+    /**
+     *  Returns the LogicalPlan contained in the current DAG
+     */
+    public LogicalPlan getLogicalPlan() throws IOException {
+        parseQuery();
+        return getCurrentDAG().getLogicalPlan();
+    }
+    
+    protected void parseQuery() {
+        try {
+            Graph dag = getCurrentDAG();
+            java.lang.reflect.Method parseQuery = dag.getClass().getDeclaredMethod("parseQuery");
+            parseQuery.setAccessible(true);
+            parseQuery.invoke(dag);
+        } catch (Exception e) {
+            LOG.warn("Couldn't parse logical plan");
+            e.printStackTrace();
+        }
+    }
+    
+    @Override
+    public void registerQuery(String query, int startLine) throws IOException {
+        super.registerQuery(query, startLine);
+        unoptimizedPlanGenerator = new P2jPlanGenerator(getLogicalPlan());
+    }    
 }
