@@ -151,7 +151,6 @@ public class BasicP2LClient implements P2LClient {
     public void createPlan(OperatorPlan<?> plan) {
         if (plan != null && unopPlanGenerator != null && opPlanGenerator != null && context != null) {
             Configuration conf = null;
-
             for (org.apache.pig.impl.plan.Operator<?> op : plan) {
                 if (conf == null) {
                     conf = new Configuration();
