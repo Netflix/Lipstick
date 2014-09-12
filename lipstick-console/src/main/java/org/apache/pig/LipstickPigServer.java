@@ -154,30 +154,14 @@ public class LipstickPigServer extends PigServer {
     public List<String> getScriptCache() {
         return getCurrentDAG().getScriptCache();
     }
-    
+
     /**
-     *  Returns the LogicalPlan contained in the current DAG
+     * Takes advantage of the fact that parseAndBuild gets called by 
+     * executeBatch <b>before</b> the logical plan is optimized
      */
-    public LogicalPlan getLogicalPlan() throws IOException {
-        parseQuery();
-        return getCurrentDAG().getLogicalPlan();
-    }
-    
-    protected void parseQuery() {
-        try {
-            Graph dag = getCurrentDAG();
-            java.lang.reflect.Method parseQuery = dag.getClass().getDeclaredMethod("parseQuery");
-            parseQuery.setAccessible(true);
-            parseQuery.invoke(dag);
-        } catch (Exception e) {
-            LOG.warn("Couldn't parse logical plan");
-            e.printStackTrace();
-        }
-    }
-    
     @Override
-    public void registerQuery(String query, int startLine) throws IOException {
-        super.registerQuery(query, startLine);
-        unoptimizedPlanGenerator = new P2jPlanGenerator(getLogicalPlan());
-    }    
+    public void parseAndBuild() throws IOException {
+        super.parseAndBuild();
+        unoptimizedPlanGenerator = new P2jPlanGenerator(getCurrentDAG().getLogicalPlan());
+    }
 }
