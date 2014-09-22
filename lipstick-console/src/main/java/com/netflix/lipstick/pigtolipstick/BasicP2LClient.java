@@ -500,6 +500,11 @@ public class BasicP2LClient implements P2LClient {
             P2jJobStatus js = jobIdToJobStatusMap.get(jobId);
         
             try {
+                // Skip progress updates for local jobs
+                if (jobId.contains("local")) {
+                    return null;
+                }
+                
                 RunningJob rj = jobClient.getJob(jobId);
                 if (rj == null) {
                     LOG.warn("Couldn't find job status for jobId=" + jobId);
