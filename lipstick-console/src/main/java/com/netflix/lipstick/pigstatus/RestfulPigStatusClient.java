@@ -27,6 +27,8 @@ import com.netflix.lipstick.model.P2jSampleOutputList;
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
+import com.sun.jersey.api.client.config.ClientConfig;
+import com.sun.jersey.api.client.config.DefaultClientConfig;
 
 /**
  * RESTful client implementation of PigStatusClient.
@@ -104,7 +106,11 @@ public class RestfulPigStatusClient implements PigStatusClient {
 
     protected ClientResponse sendRequest(String resourceUrl, Object requestObj, RequestVerb verb) {
         try {
-            Client client = Client.create();
+            ClientConfig cc = new DefaultClientConfig();
+            cc.getProperties().put(ClientConfig.PROPERTY_CONNECT_TIMEOUT, 1500);
+            
+            Client client = Client.create(cc);
+           
             WebResource webResource = client.resource(resourceUrl);
             LOG.debug("Sending " + verb + " request to " + resourceUrl);
             LOG.debug(om.writeValueAsString(requestObj));
