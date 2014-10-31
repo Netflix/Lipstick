@@ -1,0 +1,48 @@
+{
+  "id": "8",
+  "status": {
+    "progress":40,
+    "startTime":1412354951,
+    "heartbeatTime": 1412354796,
+    "statusText":"running"
+  },
+  "nodes": [
+    {"id": "a", "properties": {"alias": "uno", "operation":"start", "step_type" : "mapper"}},
+    {"id": "b", "properties": {
+      "alias": "dos", "operation":"join", "join": {
+        "by":[
+          {"alias":"a", "fields":["fieldA"]}
+        ],
+        "type":"hash",
+        "strategy":"replicated"
+      }
+    }
+    },
+    {"id": "c", "properties": {"alias": "tres", "operation":"do"}},
+    {"id": "f", "properties": {"alias": "cuatro", "operation":"end"}, "child": "1"},
+    {"id": "g", "properties": {"alias": "cinco", "operation":"do"}}
+  ],
+  "edges": [
+    {"u": "a", "v": "b"},
+    {"u": "b", "v": "c"}
+  ],
+  "node_groups": [
+    {"id": "1", "children": ["a","b"],
+     "properties": {
+       "a":{"b":"c"},
+       "foo":[1,2,3],
+       "bar":{"many":{"levels":{"of":"stuff"}}}
+     },
+     "status":{
+       "progress":30,
+       "startTime":1412354951,
+       "heartbeatTime": 1412354796,
+       "statusText":"running"
+     }
+    }
+  ],
+  "properties": {
+    "mygraphname": "example",
+    "userName":"jacob"    
+  }
+}

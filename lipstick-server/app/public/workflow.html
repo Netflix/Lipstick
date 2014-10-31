@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Lipstick</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Le styles -->
+    <link href="./bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="./css/dashboard.css" rel="stylesheet">
+    <link href="./css/jquery.treetable.css" rel="stylesheet">
+    <link href="./css/jquery.treetable.theme.default.css" rel="stylesheet">
+    <link href="./css/workflow.css" rel="stylesheet">
+
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+        <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+
+  </head>
+  <body>
+    
+    <div class="navbar navbar-fixed-top navbar-inverse" role="navigation">
+      <div class="container-fluid navbar-container">
+        <div class="navbar-header">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a href="workflows.html" class="navbar-brand" id="logo"></a>
+        </div>        
+        <div class="collapse navbar-collapse">
+          <div class="progress navbar-right">
+            <div class="progress-bar" role="progressbar"
+                 data-bind="attr: {'aria-valuenow': 'graph().status().progress'},
+                            css: graph().status().progressCss,
+                            style: {width: graph().status().progressText}"
+                 aria-valuemin="0" aria-valuemax="100">
+              <div data-bind="text: graph().status().progressText"></div>
+            </div>            
+          </div>
+          <div class="navbar-right">
+            <button type="button" class="btn btn-sm btn-default" data-toggle="tooltip"
+                    data-placement="bottom" id="zoom-reset" title="Zoom reset.">
+              <i class="glyphicon glyphicon-refresh"></i>
+            </button>
+          </div>
+        </div>        
+      </div>
+    </div>
+
+    <div id="myModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3 data-bind="html: current.edge().title"></h3>
+          </div>
+          <div class="modal-body" data-bind="html: current.edge().render"></div>
+        </div>
+      </div>            
+    </div>
+    
+    <div class="container-fluid padded page graph-container" id="graph">
+      <div class="row">
+        <div class="col-md-3 sidebar" id="workflow-info" data-bind="template: {name: 'info-template'}">
+        </div>
+        <div class="col-md-9 col-md-offset-3" id="workflow-graph">
+          <img data-bind="visible: graphNotRendered" class="center" src="./images/loading.gif"/>
+        </div>        
+      </div>
+    </div>
+    
+  </body>
+
+  <script type="text/html" id="status-template">
+    <table class="table table-condensed">
+      <tr><td>Status:</td><td data-bind="text: $data.statusText"></td></tr>
+      <tr><td>Start:</td><td data-bind="text: $data.startTime"></td></tr>
+      <tr><td>End:</td><td data-bind="text: $data.endTime"></td></tr>
+      <tr><td>Heartbeat:</td><td data-bind="text: $data.heartbeatTime"></td></tr>
+    </table>
+  </script>
+
+  <script type="text/html" id="node-groups-template">
+    <table id="ng-list-table" class="table table-condensed treetable">
+    <thead>
+      <tr>
+        <td><strong>Node Groups</strong></td>
+        <td><strong>Status</strong></td>
+        <td><strong>Progress</strong></td>
+      </tr>
+    </thead>
+    <tbody data-bind="foreach: graph().nodeGroups">
+      <tr data-bind="attr: {'data-tt-id': name, 'data-tt-parent-id': immediateParent}">        
+        <td class="ng-name">
+          <span data-bind="text: name"></span>
+          <span class="glyphicon pull-right show-subgraph"
+                data-bind="css: {'glyphicon-eye-open':$parent.current.subGraph() === name(),
+                           'glyphicon-eye-close':$parent.current.subGraph() !== name()}, click: $parent.clickedNodeGroupSideBar">
+          </span>
+        </td>
+        <td data-bind="text: status().statusText"></td>
+        <td data-bind="text: status().progressText"></td>
+      </tr>
+    </tbody>
+    </table>
+  </script>
+
+  <script type="text/html" id="ng-name-template">
+    <h5 data-bind="text: name"></h5>
+  </script>
+
+  <script type="text/html" id="ng-progress-template">
+    <table class="table table-condensed">
+      <tbody>
+        <tr>
+          <td class="progress">
+            <div class="progress-bar" role="progress" data-bind="attr: {'aria-valuenow': 'status.progress'},
+                            css: status.progressCss,
+                            style: {width: status.progressText},
+                            text: status.progressText"
+                 aria-valuemin="0" aria-valuemax="100"></div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </script>
+
+  <script type="text/html" id="ng-properties-template">
+    <table id="ng-table" class="table table-condensed treetable">
+      <tbody data-bind="foreach: treeTable">
+        <tr data-bind="attr: {'data-tt-id': id, 'data-tt-parent-id': parent}">
+          <td data-bind="text: name"></td>
+          <td data-bind="visible: leaf, text: leaf"></td>
+        </tr>
+      </tbody>
+    </table>           
+  </script>
+
+  <script type="text/html" id="node-properties-template">
+    <table id="node-table" class="table table-condensed treetable">
+      <tbody data-bind="foreach: treeTable">
+        <tr data-bind="attr: {'data-tt-id': id, 'data-tt-parent-id': parent}">
+          <td data-bind="text: name"></td>
+          <td data-bind="visible: leaf, text: leaf"></td>
+        </tr>
+      </tbody>
+    </table>           
+  </script>
+       
+  <script type="text/html" id="info-template">
+    <div class="detail-view-object-container">
+      <h3 class="detail-view-object-title">Status:</h3>
+      <div class="detail-view-object-body" data-bind="template: {name: 'status-template', data: graph().status}">
+      </div>
+    </div>
+    <div class="detail-view-object-container" data-bind="visible: groupListVisible">
+      <h3 class="detail-view-object-title"></h3>
+      <div class="detail-view-object-body" data-bind="template: {name: 'node-groups-template'}">
+      </div>
+    </div>
+    <div class="detail-view-object-container" data-bind="visible: nodeGroupVisible">
+      <h3 class="detail-view-object-title">Node Group:</h3>
+      <div class="detail-view-object-body" data-bind="template: {name: 'ng-name-template', data: current.nodeGroup}">
+      </div>
+    </div>
+    <div class="detail-view-object-container" data-bind="visible: nodeGroupVisible">
+      <h3 class="detail-view-object-title">Progress:</h3>
+      <div class="detail-view-object-body" data-bind="template: {name: 'ng-progress-template', data: current.nodeGroup}">
+      </div>
+    </div>
+    <div class="detail-view-object-container" data-bind="visible: nodeGroupVisible">
+      <h3 class="detail-view-object-title">Properties:</h3>
+      <div class="detail-view-object-body" data-bind="template: {name: 'ng-properties-template', data: current.nodeGroup}">
+      </div>
+    </div>
+    <div class="detail-view-object-container" data-bind="visible: nodeVisible">
+      <h3 class="detail-view-object-title">Properties:</h3>
+      <div class="detail-view-object-body" data-bind="template: {name: 'node-properties-template', data: current.node}">
+      </div>
+    </div>
+  </script>
+
+  <script data-main="js/workflow" src="js/require.js"></script>
+</html>

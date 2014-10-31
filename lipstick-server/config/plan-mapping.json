@@ -1,0 +1,76 @@
+{
+  "_ttl": { "enabled" : true, "default": "30d" },
+  "properties": {
+    "uuid": {
+      "type": "string",
+      "index": "not_analyzed"
+    },
+    "jobName": {
+      "type": "string",
+      "index": "not_analyzed"
+    },
+    "userName": {
+      "type": "string",
+      "index": "not_analyzed"
+    },
+    "status": {
+      "type": "object",
+      "properties": {
+        "jobStatusMap": {
+          "type": "object",
+          "enabled": false
+        },
+        "endTime": {
+          "type": "date"
+        },
+        "startTime": {
+          "type": "date"
+        },
+        "heartbeatTime": {
+          "type": "date"
+        },
+        "progress": {
+          "type": "integer"
+        },
+        "statusText": {
+          "type": "string",
+          "index": "not_analyzed"
+        }
+      }
+    },
+    "scripts": {
+      "type": "object",
+      "properties": {
+        "script": {
+          "type": "string"
+        }
+      }
+    },
+    "optimized": {
+      "type": "object",
+      "properties": {
+        "plan": {
+          "type": "object",
+          "enabled": false
+        },
+        "svg": {
+          "type": "string",
+          "index": "no"
+        }
+      }
+    },
+    "unoptimized": {
+      "type": "object",
+      "properties": {
+        "plan": {
+          "type": "object",
+          "enabled": false
+        },
+        "svg": {
+          "type": "string",
+          "index": "no"
+        }
+      }
+    }
+  }
+}

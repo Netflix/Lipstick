@@ -62,8 +62,12 @@ atlassian-ide-plugin.xml
 # NetBeans specific files/directories
 .nbattrs
 
-#lipstick 
-lipstick-server/lib
+#lipstick
+*.war
+lipstick-server/app/templates
+lipstick-server/.gem
+lipstick-server/.es-data
+lipstick-server/lib/*.jar
 lipstick-console/bin
 lipstick-console/test-output
 lipstick-console/src/main/resources/lipstick_build.txt

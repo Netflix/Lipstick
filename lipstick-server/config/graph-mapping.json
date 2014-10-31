@@ -1,0 +1,76 @@
+{
+  "graph": {
+    "_ttl": { "enabled" : true, "default": "30d" },
+    "properties": {
+      "id": {
+        "type": "string",
+        "index": "not_analyzed"
+      },
+      "name": {
+        "type": "string",
+        "index": "not_analyzed"
+      },
+      "created_at": {
+        "type": "date"
+      },
+      "updated_at": {
+        "type": "date"
+      },
+      "status": {
+        "type": "object",
+        "properties": {
+          "statusText": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "integer"
+          },
+          "endTime": {
+            "type": "date"
+          },
+          "startTime": {
+            "type": "date"
+          },
+          "heartbeatTime": {
+            "type": "date"
+          }
+        }
+      },
+      "nodes": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "index": "not_analyzed"
+          },
+          "type": {
+            "type": "string"
+          },
+          "child": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object"
+          }
+        }
+      },
+      "edges": {
+        "properties": {
+          "u": {
+            "type": "string",
+            "index": "not_analyzed"
+          },
+          "v": {
+            "type": "string",
+            "index": "not_analyzed"
+          },
+          "properties": {
+            "type": "object"
+          }
+        }
+      },
+      "properties": {
+        "type": "object"
+      }
+    }
+  }
+}

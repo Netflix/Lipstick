@@ -1,0 +1,42 @@
+{
+  "id": "doublynested",
+  "name": "doubly-nested-graph",
+  "nodes": [
+    {"id": "optimized-a", "properties": {"alias": "one", "operation":"operation-A", "step_type" : "mapper"}},
+    {"id": "optimized-b", "properties": {"alias": "two", "operation":"operation-B", "step_type" : "mapper"}},
+
+    {"id": "unoptimized-a", "properties": {"alias": "one", "operation":"operation-A", "step_type" : "mapper"}},
+    {"id": "unoptimized-b", "properties": {"alias": "two", "operation":"operation-B", "step_type" : "mapper"}},
+
+    
+    {"id": "optimized-job1", "child": "1"},
+    {"id": "optimized-job2", "child": "2"},
+
+    {"id": "unoptimized-job1", "child": "3"},
+    {"id": "unoptimized-job2", "child": "4"},
+    
+    {"id": "optimized", "child": "5"},
+    {"id": "unoptimized", "child": "6"}
+    
+  ],
+  "edges": [
+    {"u": "optimized-a", "v": "optimized-b",
+     "properties":{
+       "sampleOutput":["a\u00011\nb\u00012"],
+       "schema":[
+         {"type":"CHARARRAY", "alias":"name"},
+         {"type":"INTEGER", "alias":"value"}
+       ]
+     }
+    },
+    {"u": "unoptimized-a", "v": "unoptimized-b"}
+  ],
+  "node_groups": [
+    {"id": "1", "children": ["optimized-a"]},
+    {"id": "2", "children": ["optimized-b"]},
+    {"id": "3", "children": ["unoptimized-a"]},
+    {"id": "4", "children": ["unoptimized-b"]},
+    {"id": "5", "children": ["optimized-job1","optimized-job2"]},
+    {"id": "6", "children": ["unoptimized-job1","unoptimized-job2"]}
+  ]
+}

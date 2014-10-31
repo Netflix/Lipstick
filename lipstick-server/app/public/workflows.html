@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" class="fuelux">
+  <head>
+    <meta charset="utf-8">
+    <title>Lipstick</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Le styles -->
+    <link href="./bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="./codemirror/css/codemirror.css" rel="stylesheet">
+    <link href="./tossboss-main/css/tossboss-main.css" rel="stylesheet">
+    <link href="./fuelux-3.1.0/css/fuelux.min.css" rel="stylesheet">
+    <style>
+      body {
+        background-color: #ffffff;
+        font-size: 1em;
+      }
+      .popover {
+        max-width: 900px;
+      }
+      .popover-inner {
+        width: auto;
+      }
+      .masthead {
+        padding: 70px 0 80px;
+        margin-bottom: 0;
+        color: #fff;
+      }
+      .jumbotron {
+        position: relative;
+        padding: 40px 0;
+        color: #fff;
+        text-align: center;
+        text-shadow: 0 1px 3px rgba(0,0,0,.4), 0 0 30px rgba(0,0,0,.075);
+        background: #B9090B;
+        background: -moz-linear-gradient(45deg, #B9090B 0%, #Bd3353 100%);
+        background: -webkit-gradient(linear, left bottom, right top, color-stop(0%,#020031), color-stop(100%,#6d3353));
+        background: -webkit-linear-gradient(45deg, #B9090B 0%,#Bd3353 100%);
+        background: -o-linear-gradient(45deg, #B9090B 0%,#Bd3353 100%);
+        background: -ms-linear-gradient(45deg, #B9090B 0%,#Bd3353 100%);
+        background: linear-gradient(45deg, #B9090B 0%,#Bd3353 100%);
+        filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#B9090B', endColorstr='#Bd3353',GradientType=1 );
+        -webkit-box-shadow: inset 0 3px 7px rgba(0,0,0,.2), inset 0 -3px 7px rgba(0,0,0,.2);
+        -moz-box-shadow: inset 0 3px 7px rgba(0,0,0,.2), inset 0 -3px 7px rgba(0,0,0,.2);
+        box-shadow: inset 0 3px 7px rgba(0,0,0,.2), inset 0 -3px 7px rgba(0,0,0,.2);
+      }
+      .masthead h1 {
+        font-size: 120px;
+        line-height: 1;
+        letter-spacing: -2px;
+      }
+      
+      .logo {
+        margin: auto;
+        background-image: url("./tossboss-main/img/lipstick_940.png");
+        background-size: 940px 140px;
+        background-position: center;
+        background-repeat: no-repeat;
+        height: 140px;
+        width: 940px;
+      }
+      
+      #history {
+        padding-top: 20px;
+      }
+
+      .repeater-canvas {
+        font-size: 14px;
+      }
+
+      .form-control {
+        height: 0%;
+      }
+
+      .btn-inverse,
+      .btn-inverse:hover {
+        color: #ffffff;
+        text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+      }
+      .btn-inverse.active {
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .btn-inverse {
+        background-color: #414141;
+        background-image: -moz-linear-gradient(top, #555555, #222222);
+        background-image: -ms-linear-gradient(top, #555555, #222222);
+        background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#555555), to(#222222));
+        background-image: -webkit-linear-gradient(top, #555555, #222222);
+        background-image: -o-linear-gradient(top, #555555, #222222);
+        background-image: linear-gradient(top, #555555, #222222);
+        background-repeat: repeat-x;
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#555555', endColorstr='#222222', GradientType=0);
+        border-color: #222222 #222222 #000000;
+        border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+        *background-color: #222222;
+        /* Darken IE7 buttons by default so they stand out more given they won't have borders */
+        filter: progid:DXImageTransform.Microsoft.gradient(enabled = false);
+      }
+      .btn-inverse:hover,
+      .btn-inverse:active,
+      .btn-inverse.active,
+      .btn-inverse.disabled,
+      .btn-inverse[disabled] {
+        background-color: #222222;
+        *background-color: #151515;
+      }
+      .btn-inverse:active,
+      .btn-inverse.active {
+        background-color: #080808 \9;
+      }
+      
+    </style>
+    <script src="./js/require.js"></script>
+    <script>
+      requirejs.config({ baseUrl: './js', paths: {
+        'bootstrap': '../bootstrap/js/bootstrap.3.1.1.min',
+        'moment': 'moment.min',
+        'fuelux': '../fuelux-3.1.0/js/fuelux.min',
+        'underscore': 'lodash.min',
+      },
+      shim : {
+        'backbone-min' : {
+                deps : [ 'underscore', 'jquery' ],
+                exports : 'Backbone'
+      }
+      }});
+    </script>
+    <script>
+      require(['jquery', 'workflow-history', 'backbone-min', 'fuelux'], function ($, WorkflowHistory, Backbone) {
+      $(function() {
+        var TestRouter = Backbone.Router.extend({
+          routes: {
+            "": "drawHistoryPage",
+            ":page": "drawPageOnly",
+            "job/:uuid": "getJobInfo",
+            "history/:page": "drawHistoryPage",
+            ":page/:uuid": "drawPageWithInfo"
+          },
+          drawHistoryPage: function(page) {
+            $('.hidden').removeClass('hidden');
+            if (typeof page === 'undefined') {
+              page = 1;
+            }
+            $('#jobs_table').repeater({ dataSource: WorkflowHistory.data })
+          },
+          getJobInfo: function(uuid) {
+            window.location = 'workflow.html#graph/'+uuid;
+          },
+          drawPageOnly: function(page) {
+            window.location = 'workflow.html#'+page;
+          },
+          drawPageWithInfo: function(page, uuid) {
+            window.location = 'workflow.html#'+page+'/'+uuid;
+          }
+        });
+        router = new TestRouter();
+        Backbone.history.start();
+        $('.page').show();
+      });
+    });
+    </script>
+  </head>
+  <body>
+
+    <div style="position: fixed; top: 0; right: 0; z-index: 1;">
+      <a type="button" class="btn btn-inverse" href="./index.html" style="">v1</a>
+    </div>
+    
+    <div class="jumbotron masthead hidden">
+      <div class="container">
+        <div class="logo"></div>
+        <!-- <div class="pull-left"> -->
+        <!--     <h1>Lipstick</h1> -->
+        <!-- </div> -->
+        <!-- <div class="pull-right"> -->
+        <!--   <img src="./tossboss-main/img/tossboss_logo.large.png" class="logo"/> -->
+        <!-- </div> -->
+      </div>
+    </div>
+    
+    <div class="container padded page" id="history">
+      
+      <div id="jobs_table" class="repeater">
+        
+        <div class="repeater-header">
+          <div class="repeater-header-left">
+            <div class="repeater-search">                  
+              <div class="search input-group">                    
+                <input type="search" class="form-control" placeholder="Search"/>
+                <span class="input-group-btn">
+                  <button class="btn btn-md btn-default" type="button">
+                    <span class="glyphicon glyphicon-search"></span>
+                  </button>
+                </span>                    
+              </div>                  
+            </div>
+          </div>
+        </div> <!-- repeater-header -->
+
+        <div class="repeater-viewport">
+          <div class="repeater-canvas"></div>
+          <div class="loader repeater-loader"></div>
+        </div> <!-- repeater-viewport -->
+
+        <div class="repeater-footer">
+          <div class="repeater-footer-left">
+            <div class="repeater-itemization">
+              <span><span class="repeater-start"></span> - <span class="repeater-end"></span> of <span class="repeater-count"></span> items</span>
+              <div class="btn-group selectlist" data-resize="auto">
+                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                  <span class="selected-label">&nbsp;</span>
+                  <span class="caret"></span>
+                  <span class="sr-only">Toggle Dropdown</span>
+                </button>
+                <ul class="dropdown-menu" role="menu">
+                  <li data-value="5"><a href="#">5</a></li>
+                  <li data-value="10" data-selected="true"><a href="#">10</a></li>
+                  <li data-value="20"><a href="#">20</a></li>
+                  <li data-value="50" data-foo="bar" data-fizz="buzz"><a href="#">50</a></li>
+                  <li data-value="100"><a href="#">100</a></li>
+                </ul>
+                <input class="hide hidden-field" name="itemsPerPage" readonly="readonly" aria-hidden="true" type="text"/>
+              </div>
+              <span>Per Page</span>
+            </div>
+          </div> <!-- repeater-footer-left -->
+
+          <div class="repeater-footer-right">
+            <div class="repeater-pagination">
+              <button type="button" class="btn btn-default btn-sm repeater-prev">
+                <span class="glyphicon glyphicon-chevron-left"></span>
+                <span class="sr-only">Previous Page</span>
+              </button>
+              <label class="page-label" id="myPageLabel">Page</label>
+              <div class="repeater-primaryPaging active">
+                <div class="input-group input-append dropdown combobox">
+                  <input type="text" class="form-control" aria-labelledby="myPageLabel">
+                  <div class="input-group-btn">
+                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                      <span class="caret"></span>
+                      <span class="sr-only">Toggle Dropdown</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-right"></ul>
+                  </div>
+                </div>
+              </div>
+              <input type="text" class="form-control repeater-secondaryPaging" aria-labelledby="myPageLabel">
+              <span>of <span class="repeater-pages"></span></span>
+              <button type="button" class="btn btn-default btn-sm repeater-next">
+                <span class="glyphicon glyphicon-chevron-right"></span>
+                <span class="sr-only">Next Page</span>
+              </button>
+            </div>            
+          </div> <!-- repeater-footer-right -->
+          
+        </div> <!-- repeater-footer -->        
+      </div> <!-- repeater -->
+      
+    </div>
+  </body>
+</html>

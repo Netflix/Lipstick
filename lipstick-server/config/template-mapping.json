@@ -1,0 +1,17 @@
+{
+  "node_template": {
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "view": {
+        "type": "string",
+        "index": "not_analyzed"
+      },
+      "template": {
+        "type": "string",
+        "index": "not_analyzed"
+      }
+    }
+  }
+}

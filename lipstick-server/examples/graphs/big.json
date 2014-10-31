@@ -1,0 +1,110 @@
+{
+  "id": "9",
+  "status": {
+    "progress":20,
+    "startTime":1412354951,
+    "heartbeatTime": 1412354796,
+    "statusText":"running"
+  },
+  "nodes": [
+    {"id": "a", "properties": {"alias": "one", "operation":"start", "step_type" : "mapper"}},
+    {"id": "b", "properties": {"alias": "two", "operation":"hop", "step_type" : "mapper"}},
+    
+    {"id": "c", "properties": {"alias": "three", "operation":"skip", "step_type" : "mapper"}},
+    {"id": "d", "properties": {
+      "alias": "four", "operation":"join", "step_type" : "mapper", "join": {
+        "by":[
+          {"alias":"one", "fields":["fieldA"]},
+          {"alias":"two", "fields":["fieldA"]}
+        ],
+        "type":"hash",
+        "strategy":"replicated"
+      }
+    }},
+    
+    {"id": "e", "properties": {"alias": "five", "operation":"read", "step_type" : "mapper"}},
+    {"id": "f", "properties": {"alias": "six", "operation":"fly", "step_type" : "mapper"}},
+    {"id": "g", "properties": {"alias": "seven", "operation":"dance", "step_type" : "mapper"}},
+    
+    {"id": "h", "properties": {"alias": "eight", "operation":"rollerskate", "step_type" : "mapper"}},
+    {"id": "i", "properties": {"alias": "nine", "operation":"roll", "step_type" : "mapper"}},
+    {"id": "j", "properties": {"alias": "ten", "operation":"dive", "step_type" : "mapper"}},
+
+    {"id": "k", "properties": {"alias": "eleven", "operation":"tuck", "step_type" : "mapper"}},
+    {"id": "l", "properties": {"alias": "twelve", "operation":"pushup", "step_type" : "mapper"}},
+    {"id": "m", "properties": {"alias": "thirteen", "operation":"twist", "step_type" : "mapper"}},
+    {"id": "n", "properties": {"alias": "fourteen", "operation":"kick", "step_type" : "mapper"}},
+    {"id": "o", "properties": {"alias": "fifteen", "operation":"shout", "step_type" : "mapper"}},
+    {"id": "p", "properties": {"alias": "sixteen", "operation":"finish", "step_type" : "mapper"}},
+
+    {"id": "job1", "child": "1"},
+    {"id": "job2", "child": "2"},
+    {"id": "job3", "child": "3"},
+    {"id": "job4", "child": "4"},
+    {"id": "job5", "child": "5"}
+    
+  ],
+  "edges": [
+    {"u": "a", "v": "d"},
+    {"u": "b", "v": "d"},
+    {"u": "c", "v": "e"},
+    {"u": "d", "v": "f"},
+    {"u": "f", "v": "g"},
+    {"u": "g", "v": "h"},
+    {"u": "h", "v": "i"},
+    {"u": "i", "v": "j"},
+    {"u": "j", "v": "k"},
+    {"u": "k", "v": "l"},
+    {"u": "l", "v": "m"},
+    {"u": "m", "v": "n"},
+    {"u": "n", "v": "o"},
+    {"u": "o", "v": "p"}
+  ],
+  "node_groups": [
+    {"id": "1", "children": ["a","b"], "status":{
+       "progress":10,
+       "startTime":1412354951,
+       "heartbeatTime": 1412354796,
+       "statusText":"failed"
+     }
+    },
+    {"id": "2", "children": ["c","d"]},
+    {"id": "3", "children": ["e","f","g"]},
+    {"id": "4", "children": ["h","i","j"],
+     "properties": {
+       "counters":{
+         "mapreduce":{
+           "num_records":2
+         },
+         "file_system":{
+           "bytes_read":4,
+           "bytes_written":17
+         }
+       }
+     }
+    },
+    {"id": "5", "children": ["k","l","m","n","o","p"],
+     "properties": {
+       "counters":{
+         "mapreduce":{
+           "num_records":2
+         },
+         "file_system":{
+           "bytes_read":4,
+           "bytes_written":17
+         }
+       }
+     },
+     "status":{
+       "progress":30,
+       "startTime":1412354951,
+       "heartbeatTime": 1412354796,
+       "statusText":"running"
+     }
+    }
+  ],
+  "properties": {
+    "mygraphname": "example",
+    "userName":"jacob"    
+  }
+}

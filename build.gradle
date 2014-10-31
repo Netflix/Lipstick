@@ -39,13 +39,14 @@ task(licensesAll, type: License) {
     skipExistingHeaders = true
     source '.'
     include 'lipstick-console/src/**/*.java'
-    include 'lipstick-server/grails-app/**'
-    include 'lipstick-server/src/groovy/**/*.groovy'
-    include 'lipstick-server/web-app/js/tossboss*.js'
-    include 'lipstick-server/web-app/tossboss*/js/*.js'
-    include 'lipstick-server/web-app/*.html'
-    include 'lipstick-server/web-app/tossboss*/*.html'
-    include 'lipstick-server/web-app/tossboss*/css/*.css'
+    include 'lipstick-server/app/**/*.rb'
+    include 'lipstick-server/app/public/js/tossboss*.js'
+    include 'lipstick-server/app/public/js/workflow*.js'
+    include 'lipstick-server/app/public/js/workflow/**/*.js'
+    include 'lipstick-server/app/public/tossboss*/js/*.js'
+    include 'lipstick-server/app/public/*.html'
+    include 'lipstick-server/app/public/tossboss*/*.html'
+    include 'lipstick-server/app/public/tossboss*/css/*.css'
     include 'scripts/**'
     include 'test/integration/**'
     include 'test/unit/**'
@@ -82,34 +83,109 @@ task('clean-expanded', type:Delete) {
 }
 
 project(':lipstick-server') {
-    task('clean', type:Exec) {
-        commandLine './grailsw', 'clean'
+
+  apply from: file('../gradle/maven.gradle')
+  apply from: file('../gradle/convention.gradle')
+  
+  dependencies {
+  
+    runtime('org.apache.pig:pig:0.13.0') {
+      exclude module: 'hsqld'
+      exclude module: 'jetty'
+      exclude module: 'jsp-api-2.1'
+      exclude module: 'servlet-api-2.5'
     }
-    task('clean-lib', type:Delete) {
-        ant.delete (includeEmptyDirs: 'true', quiet: 'true') {
-            fileset(dir: file('lipstick-server/lib'), includes: '*.jar')
-        }
+
+    runtime('org.apache.hadoop:hadoop-common:2.4.0') {
+      exclude module: 'jersey-api'
+      exclude module: 'jersey-json'
+      exclude module: 'jersey-guice'
+      exclude module: 'jersey-server'
+      exclude module: 'jersey-test-framework'
     }
-    task('import-jar', type:Copy, dependsOn: [':lipstick-console:jar','clean-lib']) {
-        from ('../lipstick-console/build/libs') {
-            include '*withHadoop.jar'
-        }
-        into ('lib')
+
+    runtime('org.apache.hadoop:hadoop-mapreduce-client-jobclient:2.4.0') {
+      exclude module: 'jersey-api'
+      exclude module: 'jersey-json'
+      exclude module: 'jersey-guice'
+      exclude module: 'jersey-server'
+      exclude module: 'jersey-test-framework'
     }
-    task('debug', type:Exec, dependsOn: ['import-jar', ':lipstick-console:hadoopJar'])  {
-        group = "Lipstick"
-        description = 'Run lipstick-server in debug mode. Runs on port 8080. Set -Pport=[port] to change.'
-        commandLine './grailsw', '-Dserver.port=' + (project.hasProperty('port') ? port : 8080), 'run-app'
+  
+    runtime('org.jruby:jruby-complete:1.7.14') {
+      exclude module: 'jnr-posix'
+      exclude module: 'jnr-constants'
+      exclude module: 'jnr-enxio'
+      exclude module: 'jnr-ffi'
+      exclude module: 'jnr-netdb'
+      exclude module: 'jnr-unixsocket'
+      exclude module: 'jnr-x86asm'
     }
-    task('debug-war', type:Exec, dependsOn: ':lipstick-server:import-jar') {
-        commandLine './grailsw', 'debug', 'war'
+
+    runtime 'com.netflix.eureka:eureka-client:1.1.141'
+    runtime 'org.elasticsearch:elasticsearch:1.3.2'
+    runtime 'org.hibernate:hibernate-entitymanager:3.6.0.Final'
+    runtime 'org.codehaus.jackson:jackson-mapper-asl:1.9.10'
+  }
+
+  task cleanLib(type: Delete) {
+    delete fileTree(dir: "lib")
+    delete fileTree(dir: ".gem")
+    delete fileTree(dir: ".es-data")
+  }
+  
+  task copyDepends(type: Copy) {
+    from configurations.runtime
+    into "lib"  
+  }
+
+  task importJar(type:Copy, dependsOn: [':lipstick-console:fullJar']) {
+    from ('../lipstick-console/build/libs') {
+      include '*full.jar'
     }
-    task('war', type:Exec, dependsOn: ':lipstick-server:import-jar') {
-        group = "Lipstick"
-        description = 'Build a war for release.'
-        commandLine './grailsw', 'set-version', version
-        commandLine './grailsw', 'prod', 'war'
-    }
+    into ('lib')
+  }
+
+  def gemHome = file('.gem')
+  gemHome.mkdirs()
+
+  def bundleExecutable = file('.gem/bin/bundle')
+  
+  task getBundler(type:JavaExec, dependsOn: ['copyDepends']) {
+    onlyIf {
+      !bundleExecutable.exists()
+    }  
+    classpath configurations.runtime
+    environment('GEM_HOME', gemHome)
+    args '-S', 'gem', 'install', 'bundler'
+    main = "org.jruby.Main"
+  }
+
+  task gems(type:JavaExec, dependsOn: ['getBundler']) {
+    environment('GEM_HOME', gemHome)
+    classpath configurations.runtime
+    args '-S', '.gem/bin/bundle', 'install'
+    main = "org.jruby.Main"
+  }
+
+  task('run-app', type:JavaExec, dependsOn: ['gems', 'importJar'])  {
+    delete fileTree(dir: ".es-data")
+
+    environment('RUBYLIB', '.')
+    environment('RACK_ENV', System.getenv('RACK_ENV') ?: 'development')
+    environment('GEM_HOME', gemHome)
+    classpath configurations.runtime
+    args '-S', '.gem/bin/rackup'
+    main = "org.jruby.Main"
+  }
+
+  task('war', type:JavaExec, dependsOn: ['gems', 'importJar'])  {
+    environment('RUBYLIB', '.')
+    environment('GEM_HOME', gemHome)
+    classpath configurations.runtime  
+    args '-S', '.gem/bin/warble'
+    main = "org.jruby.Main"
+  }
 }
 
 project(':lipstick-console') {
