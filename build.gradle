@@ -69,7 +69,7 @@ defaultTasks 'buildRelease'
 task('buildRelease', type:Copy, dependsOn: ['clean-expanded', ':lipstick-console:allJars', ':lipstick-server:war']) {
     group = "Lipstick"
     description = 'Build lipstick-server and lipstick-console and copy the artifacts to the build dir.'
-    from ('./lipstick-server/target') {
+    from ('./lipstick-server') {
         include '*.war'
     }
     from ('./lipstick-console/build/libs') {
