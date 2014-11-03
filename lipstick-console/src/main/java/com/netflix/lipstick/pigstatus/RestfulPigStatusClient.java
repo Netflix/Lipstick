@@ -108,6 +108,7 @@ public class RestfulPigStatusClient implements PigStatusClient {
         try {
             ClientConfig cc = new DefaultClientConfig();
             cc.getProperties().put(ClientConfig.PROPERTY_CONNECT_TIMEOUT, 1500);
+            cc.getProperties().put(ClientConfig.PROPERTY_READ_TIMEOUT, 1500);
             
             Client client = Client.create(cc);
            
