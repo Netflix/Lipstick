@@ -168,6 +168,13 @@ project(':lipstick-server') {
     main = "org.jruby.Main"
   }
 
+  task doc(type:JavaExec, dependsOn: ['gems']) {
+    environment('GEM_HOME', gemHome)
+    classpath configurations.runtime
+    args '-S', '.gem/bin/yard', '--output-dir', 'app/public/doc'
+    main = "org.jruby.Main"
+  }
+  
   task('run-app', type:JavaExec, dependsOn: ['gems', 'importJar'])  {
     delete fileTree(dir: ".es-data")
 

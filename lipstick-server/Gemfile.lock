@@ -18,6 +18,9 @@ GEM
       jruby-rack (>= 1.0.0)
       rake (>= 0.9.6)
       rubyzip (>= 0.9, < 1.2)
+    yard (0.8.7.6)
+    yard-sinatra (1.0.0)
+      yard (~> 0.7)
 
 PLATFORMS
   java
@@ -25,3 +28,5 @@ PLATFORMS
 DEPENDENCIES
   sinatra
   warbler
+  yard
+  yard-sinatra

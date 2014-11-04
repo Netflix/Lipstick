@@ -2,3 +2,5 @@ source "https://rubygems.org"
 
 gem 'sinatra'
 gem 'warbler'
+gem 'yard'
+gem 'yard-sinatra'

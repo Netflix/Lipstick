@@ -200,7 +200,34 @@ get '/job' do
   [200, {'Content-Type' => 'application/json'}, res.to_json]
 end
 
-
+# @!macro sinatra.get
+#   @method $1
+#   @overload GET '$1'
+#   Get a list of all workflow graphs. See {Lipstick::Graph}
+#   @param max [Integer] Optional. Default: 10. Integer specifying
+#     the maximum number of plans to return.
+#   @param sort [String] Optional. Default: "startTime". String
+#     field name of the field to sort the results by.
+#   @param offset [Integer] Optional. Default: 0. Offset for results.
+#     How paging is possible.
+#   @param order [String] Optional. Default: "asc". "asc" to sort the
+#     results in ascending order, "desc" for descending order.
+#   @param search [String] Optional. Search string to get plans by a
+#     specific user or with a specific name.
+#   @return [String] A json string with a list of graphs. Has the following
+#     structure:
+#      {
+#        "jobs": [list of graphs],
+#        "jobsTotal": <number of jobs>
+#      }
+#     where each job in the list looks like the following:
+#      {
+#        "id": <graph id>,
+#        "name": <graph name>,
+#        "created_at": <graph creation time, unix timestamp, milliseconds>,
+#        "updated_at": <graph updated time, unix timestamp, millisecods>
+#      }
+# @see Lipstick::Graph
 get '/v1/job' do
   res = PlanService.list_graphs(params)
   if !res
@@ -209,9 +236,6 @@ get '/v1/job' do
   [200, {'Content-Type' => 'application/json'}, res.to_json]
 end
 
-#
-# Get a specific plan
-#
 get '/job/:id' do
   ret = PlanService.get(params)
   if !ret
@@ -221,9 +245,10 @@ get '/job/:id' do
   [200, {'Content-Type' => 'application/json'}, ret]
 end
 
-#
-# Get a specific workflow graph
-#
+# @!method GET('/v1/job/:id')
+# Get a specific workflow graph by id
+# @return [String] A json string representation of the graph requested.
+# @see Lipstick::Graph
 get '/v1/job/:id' do
   ret = PlanService.get_graph(params)
   if !ret
@@ -246,6 +271,14 @@ post '/job/?' do
   ret.to_json
 end
 
+# @!macro sinatra.post
+#   @method $1
+#   @overload POST '/v1/job'
+#   Create a new workflow graph. {Lipstick::Graph} for spec.
+#   @param body [String] JSON object containing a workflow graph.
+#   @return [String] A json string either containing the uuid of the
+#       graph saved or an error if the save failed.
+# @see Lipstick::Graph
 post '/v1/job/?' do
   request.body.rewind
   ret = PlanService.save_graph(params, request.body.read)
@@ -255,6 +288,15 @@ post '/v1/job/?' do
   ret.to_json
 end
 
+# @!macro sinatra.put
+#   @method $1
+#   @overload PUT '$1'
+#   Update an existing workflow graph (eg. with new status). {Lipstick::Graph} for spec.
+#   @param body [String] JSON object containing valid {Lipstick::Graph::Status} objects.
+#     At most one per graph, node group, and node.
+#   @return [String] A json string either containing the uuid of the
+#       graph updated or an error if the update failed.
+# @see Lipstick::Graph::Status
 put '/v1/job/:id' do
   request.body.rewind
   ret = PlanService.update_graph(params, request.body.read)
