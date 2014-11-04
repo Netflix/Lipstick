@@ -186,7 +186,7 @@ project(':lipstick-server') {
     main = "org.jruby.Main"
   }
 
-  task('war', type:JavaExec, dependsOn: ['gems', 'importJar'])  {
+  task('war', type:JavaExec, dependsOn: ['gems', 'doc', 'importJar'])  {
     environment('RUBYLIB', '.')
     environment('GEM_HOME', gemHome)
     classpath configurations.runtime  
