@@ -171,7 +171,7 @@ project(':lipstick-server') {
   task doc(type:JavaExec, dependsOn: ['gems']) {
     environment('GEM_HOME', gemHome)
     classpath configurations.runtime
-    args '-S', '.gem/bin/yard', '--output-dir', 'app/public/doc'
+    args '-S', '.gem/bin/yard', '--output-dir', 'app/public/doc', '--no-private', '-q'
     main = "org.jruby.Main"
   }
   

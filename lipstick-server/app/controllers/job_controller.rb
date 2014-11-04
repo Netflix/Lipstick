@@ -189,9 +189,11 @@ get '/' do
   send_file File.join(settings.public_folder, 'index.html')
 end
 
-#
-# Get a listing of jobs
-#
+# @method get_jobs
+# @overload GET "/job"
+# Gets a listing of P2jPlanPackage objects as json.
+# @return [String] A json string with keys "jobs" and "jobsTotal"
+# @deprecated
 get '/job' do
   res = PlanService.list(params)
   if !res
@@ -200,34 +202,37 @@ get '/job' do
   [200, {'Content-Type' => 'application/json'}, res.to_json]
 end
 
-# @!macro sinatra.get
-#   @method $1
-#   @overload GET '$1'
-#   Get a list of all workflow graphs. See {Lipstick::Graph}
-#   @param max [Integer] Optional. Default: 10. Integer specifying
-#     the maximum number of plans to return.
-#   @param sort [String] Optional. Default: "startTime". String
-#     field name of the field to sort the results by.
-#   @param offset [Integer] Optional. Default: 0. Offset for results.
-#     How paging is possible.
-#   @param order [String] Optional. Default: "asc". "asc" to sort the
-#     results in ascending order, "desc" for descending order.
-#   @param search [String] Optional. Search string to get plans by a
-#     specific user or with a specific name.
-#   @return [String] A json string with a list of graphs. Has the following
-#     structure:
-#      {
-#        "jobs": [list of graphs],
-#        "jobsTotal": <number of jobs>
-#      }
-#     where each job in the list looks like the following:
-#      {
-#        "id": <graph id>,
-#        "name": <graph name>,
-#        "created_at": <graph creation time, unix timestamp, milliseconds>,
-#        "updated_at": <graph updated time, unix timestamp, millisecods>
-#      }
+# @method get_v1_jobs
+# @overload GET "/v1/job"
+# Get a list of all workflow graphs. See {Lipstick::Graph}
+# @param max [Integer] Optional. Default: 10. Integer specifying
+#   the maximum number of plans to return.
+# @param sort [String] Optional. Default: "startTime". String
+#   field name of the field to sort the results by.
+# @param offset [Integer] Optional. Default: 0. Offset for results.
+#   How paging is possible.
+# @param order [String] Optional. Default: "asc". "asc" to sort the
+#   results in ascending order, "desc" for descending order.
+# @param search [String] Optional. Search string to get plans by a
+#   specific user or with a specific name.
+# @return [String] A json string with a list of graphs. Has the following
+#   structure:
+#    {
+#      "jobs": [list of graphs],
+#      "jobsTotal": <number of jobs>
+#    }
+#   where each job in the list looks like the following:
+#    {
+#      "id": <graph id>,
+#      "name": <graph name>,
+#      "created_at": <graph creation time, unix timestamp, milliseconds>,
+#      "updated_at": <graph updated time, unix timestamp, millisecods>
+#    }
 # @see Lipstick::Graph
+# @example
+#   $: curl -XGET "localhost:9292/v1/job"
+#   {"jobs":[{"id":"037389e6-49e0-450b-b02e-082173b17b4c","name":"PigLatin:bf.pig","created_at":1414704734000,"updated_at":1414704734000},{"id":"05d94692-0a7c-4f0b-81e4-8b4f79fe612b","name":"PigLatin:bf.pig","created_at":1414704734000,"updated_at":1414704734000},{"id":"08cf2150-85fb-4cdd-863e-470d3bed0cf9","name":"PigLatin:profile_takerate_agg_f.pig","created_at":1414704734000,"updated_at":1414704734000},{"id":"0978808f-1334-453f-81ac-1353bb5019ac","name":"PigLatin:aro_diversity_pvr_training_data.pig","created_at":1414704734000,"updated_at":1414704734000}],"jobsTotal":4}
+#
 get '/v1/job' do
   res = PlanService.list_graphs(params)
   if !res
@@ -236,6 +241,12 @@ get '/v1/job' do
   [200, {'Content-Type' => 'application/json'}, res.to_json]
 end
 
+# @method get_job
+# @overload GET "/job/:id"
+# Get P2jPlanPackage as json.
+# @param id [String] The uuid of the plan to fetch
+# @return [String] A json string of the P2jPlanPackage
+# @deprecated
 get '/job/:id' do
   ret = PlanService.get(params)
   if !ret
@@ -245,10 +256,15 @@ get '/job/:id' do
   [200, {'Content-Type' => 'application/json'}, ret]
 end
 
-# @!method GET('/v1/job/:id')
+# @method get_v1_job
+# @overload GET "/v1/job/:id"
 # Get a specific workflow graph by id
+# @param id [String] The id of the workflow graph to fetch
 # @return [String] A json string representation of the graph requested.
 # @see Lipstick::Graph
+# @example
+#   $: curl -XGET "localhost:9292/v1/job/8"
+#   {"id":"8","status":{...},"nodes":[...],"edges":[...],"name":"workflow-8","properties":{...},"node_groups":[...],"created_at":1415140632000,"updated_at":1415140632000}
 get '/v1/job/:id' do
   ret = PlanService.get_graph(params)
   if !ret
@@ -258,10 +274,13 @@ get '/v1/job/:id' do
   [200, {'Content-Type' => 'application/json'}, ret]
 end
 
-
-#
-# Create a new plan
-#
+# @method post_job
+# @overload POST "/job"
+# Create a new P2jPlanPackage from json string
+# @param body [String] JSON serialization of a P2jPlanPackage object
+# @return [String] A json string with keys "uuid" and "aliases" if
+#   successful otherwise "error"
+# @deprecated
 post '/job/?' do
   request.body.rewind
   ret = PlanService.save(params, request.body.read)
@@ -271,14 +290,18 @@ post '/job/?' do
   ret.to_json
 end
 
-# @!macro sinatra.post
-#   @method $1
-#   @overload POST '/v1/job'
-#   Create a new workflow graph. {Lipstick::Graph} for spec.
-#   @param body [String] JSON object containing a workflow graph.
-#   @return [String] A json string either containing the uuid of the
-#       graph saved or an error if the save failed.
+# @method post_v1_job
+# @overload POST "/v1/job"
+# Create a new workflow graph. {Lipstick::Graph} for spec.
+# @param body [String] Body of POST request must be a JSON object containing a
+#   workflow graph.
+# @return [String] A json string either containing the uuid of the
+#     graph saved or an error if the save failed.
 # @see Lipstick::Graph
+# @example
+#   $: curl -H 'Content-Type: application/json' -XPOST "localhost:9292/v1/job" -d@examples/graphs/example.json
+#   {"id":"8"}
+#
 post '/v1/job/?' do
   request.body.rewind
   ret = PlanService.save_graph(params, request.body.read)
@@ -288,15 +311,19 @@ post '/v1/job/?' do
   ret.to_json
 end
 
-# @!macro sinatra.put
-#   @method $1
-#   @overload PUT '$1'
-#   Update an existing workflow graph (eg. with new status). {Lipstick::Graph} for spec.
-#   @param body [String] JSON object containing valid {Lipstick::Graph::Status} objects.
-#     At most one per graph, node group, and node.
-#   @return [String] A json string either containing the uuid of the
-#       graph updated or an error if the update failed.
+# @method update_v1_job
+# @overload PUT "/v1/job/:id"
+# Update an existing workflow graph (eg. with new status). {Lipstick::Graph} for spec.
+# @param id [String] The id of the workflow graph to update
+# @param body [String] JSON object containing valid {Lipstick::Graph::Status} objects.
+#   At most one per graph, node group, and node.
+# @return [String] A json string either containing the uuid of the
+#     graph updated or an error if the update failed.
 # @see Lipstick::Graph::Status
+# @example
+#   $: curl -XPUT "localhost:9292/v1/job/8" -d @examples/graphs/example.json
+#   {"status":"updated uuid 8"}
+#
 put '/v1/job/:id' do
   request.body.rewind
   ret = PlanService.update_graph(params, request.body.read)
@@ -306,9 +333,14 @@ put '/v1/job/:id' do
   ret.to_json
 end
 
-#
-# Update a plan
-#
+# @method update_job
+# @overload PUT "/job/:id"
+# Update a P2jPlanPackage with status information
+# @param id [String] The uuid of the plan to update
+# @param body [String] JSON serialization of a P2jPlanStatus
+# @return [String] A json string with keys "status" if
+#   successful otherwise "error"
+# @deprecated
 put '/job/:id' do
   request.body.rewind
   ret = PlanService.update(params, request.body.read)
@@ -318,6 +350,15 @@ put '/job/:id' do
   ret.to_json
 end
 
+# @method update_sample_output
+# @overload PUT "/job/:id/sampleOutput/:jobId"
+# Update the sample output data for a single map-reduce job for a single plan
+# @param id [String] The uuid of the plan to update
+# @param jobId [String] The map-reduce job id of the job to update
+# @param body [String] Json body with sample output data
+# @return [String] A json string with keys "id" and "uuid" if successful
+#   "error" otherwise
+# @deprecated
 put "/job/:id/sampleOutput/:jobId" do
   request.body.rewind
   ret = PlanService.add_sample_output(params["id"], params["jobId"], request.body.read)
@@ -327,9 +368,6 @@ put "/job/:id/sampleOutput/:jobId" do
   ret.to_json
 end
 
-#
-# Various incorrect ways of accessing api
-#
 put '/job' do
   [400, {:error => "a uuid must be speficied"}]
 end

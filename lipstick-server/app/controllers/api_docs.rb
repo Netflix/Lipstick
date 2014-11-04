@@ -18,6 +18,6 @@ get '/doc' do
   redirect '/doc/index.html'
 end
 
-get 'apidocs' do
+get '/apidocs' do
   redirect '/doc/top-level-namespace.html'
 end
