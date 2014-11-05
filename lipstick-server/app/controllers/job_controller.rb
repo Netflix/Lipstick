@@ -26,9 +26,25 @@ class PlanService
   @@om = ObjectMapper.new
   # don't index empty&null values
   @@om.set_serialization_inclusion(JsonSerialize::Inclusion::NON_NULL)
+
+  #
+  # Wrap deserialization
+  #
+  def self.p2j_from_json json, java_class
+    ser = nil
+    begin
+      ser = @@om.read_value(json, java_class)
+    rescue => e
+      $stderr.puts("Error deserializing: [#{$!}]")
+      $stderr.puts(e.backtrace)
+    end
+    return ser
+  end
   
   def self.save params, json
-    ser  = @@om.read_value(json, P2jPlanPackage.java_class)
+    ser  = p2j_from_json(json, P2jPlanPackage.java_class)
+    return unless ser
+    
     uuid = ser.get_uuid
     
     svg  = Pig2DotGenerator.new(ser.get_optimized).generate_plan("svg")
@@ -70,8 +86,11 @@ class PlanService
     plan = @@es.get(id, 'plan')
     return unless plan
     
-    sample_output_list = @@om.read_value(json, P2jSampleOutputList.java_class)
-    plan = @@om.read_value(plan, P2jPlanPackage.java_class)
+    sample_output_list = p2j_from_json(json, P2jSampleOutputList.java_class)
+    return unless sample_output_list
+    
+    plan = p2j_from_json(plan, P2jPlanPackage.java_class)
+    return unless plan
     
     output_map = plan.getSampleOutputMap || {}
     output_map[job_id] = sample_output_list
@@ -98,9 +117,14 @@ class PlanService
   def self.update params, json
     plan = @@es.get(params[:id], 'plan')
     return unless plan
+
+    plan = p2j_from_json(plan, P2jPlanPackage.java_class)
+    return unless plan
+
+    status = p2j_from_json(json, P2jPlanStatus.java_class)
+    return unless status
     
-    plan = @@om.read_value(plan, P2jPlanPackage.java_class)
-    plan.status.update_with(@@om.read_value(json, P2jPlanStatus.java_class))
+    plan.status.update_with(status)
     if @@es.save(params[:id], 'plan', @@om.write_value_as_string(plan))
       return {:status => "updated uuid #{params[:id]}"}
     else      
@@ -230,7 +254,7 @@ class PlanService
       return unless ret
 
       if params[:sampleOutput]
-        temp = @@om.read_value(@@es.get(params[:id], 'plan'), P2jPlanPackage.java_class)
+        temp = p2j_from_json(@@es.get(params[:id], 'plan'), P2jPlanPackage.java_class)
         j = JSON.parse(ret)
         j[:sampleOutputMap] = temp.sample_output_map
         ret = @@om.write_value_as_string(j)
