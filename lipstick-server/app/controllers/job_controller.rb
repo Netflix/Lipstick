@@ -108,6 +108,74 @@ class PlanService
     end    
   end
 
+  def self.update_graph_node params, json
+    graph = @@es.get(params[:id], 'graph')
+    return unless graph
+
+    graph = Lipstick::Graph.from_json(graph)    
+    data  = JSON.parse(json)
+
+    graph_node = graph.get_node(params[:nodeId])
+    if graph_node # update existing node
+      graph_node.update_with!(data)
+    else # create new node
+      graph.nodes << Lipstick::Graph::Node.from_hash(data)
+    end
+
+    graph.updated_at = Time.now.to_i*1000
+    if @@es.save(graph.id.to_s, 'graph', graph.to_json)
+      return {:status => "updated uuid #{params[:id]}"}
+    else      
+      return
+    end 
+  end
+
+  def self.update_graph_node_group params, json
+    graph = @@es.get(params[:id], 'graph')
+    return unless graph
+
+    graph = Lipstick::Graph.from_json(graph)    
+    data  = JSON.parse(json)
+
+    node_group = graph.get_node_group(params[:nodeGroupId])
+    if node_group # update existing node group
+      node_group.update_with!(data)
+    else # create new node
+      graph.node_groups << Lipstick::Graph::NodeGroup.from_hash(data)
+    end
+
+    graph.updated_at = Time.now.to_i*1000
+    if @@es.save(graph.id.to_s, 'graph', graph.to_json)
+      return {:status => "updated uuid #{params[:id]}"}
+    else      
+      return
+    end 
+  end
+
+  def self.update_graph_edge params, json
+    return unless (params[:u] && params[:v])
+    
+    graph = @@es.get(params[:id], 'graph')
+    return unless graph
+
+    graph = Lipstick::Graph.from_json(graph)    
+    data  = JSON.parse(json)
+
+    graph_edge = graph.get_edge(params[:u], params[:v])
+    if graph_edge # update existing node group
+      graph_edge.update_with!(data)
+    else # create new node
+      graph.edges << Lipstick::Graph::Edge.from_hash(data)
+    end
+
+    graph.updated_at = Time.now.to_i*1000
+    if @@es.save(graph.id.to_s, 'graph', graph.to_json)
+      return {:status => "updated uuid #{params[:id]}"}
+    else      
+      return
+    end
+  end
+  
   #
   # Updates graph status
   #
@@ -329,6 +397,108 @@ put '/v1/job/:id' do
   ret = PlanService.update_graph(params, request.body.read)
   if !ret
     return [404, {:error => "graph #{params[:id]} not found"}.to_json]
+  end
+  ret.to_json
+end
+
+# @method update_v1_node
+# @overload PUT "/v1/job/:id/node/:nodeId"
+# Update an existing workflow graph's node. {Lipstick::Graph::Node} for spec. If
+# the node doesn't currently exist in the graph it is added. New node properties are
+# recursively merged into existing node properties.
+# @param id [String] The id of the workflow graph to update
+# @param nodeId [String] The id of the node to create or update.
+# @param body [String] JSON object containing a valid representation of a
+#   {Lipstick::Graph::Node} object. A partial representation (eg. just node
+#   status) works.
+# @return [String] A json string either containing the id of the
+#     graph updated or an error if the update failed.
+# @see Lipstick::Graph::Node
+# @example
+#   # Create graph and add a node
+#   $: curl -XPOST "localhost:9292/v1/job" -d -d '{"name":"mygraph","id":"mygraph","nodes":[{"id":"A"}],"edges":[]}'
+#   {"id":"mygraph"}
+#   $: curl -XPUT "localhost:9292/v1/job/mygraph/node/B" -d '{"id":"B"}'
+#   {"status":"updated uuid mygraph"}
+# @example
+#   # Update a node's status
+#   $: curl -XPUT "localhost:9292/v1/job/mygraph/node/B" -d '{"status":{"statusText":"failed"}}'
+#   {"status":"updated uuid mygraph"}
+put '/v1/job/:id/node/:nodeId' do
+  request.body.rewind
+  ret = PlanService.update_graph_node(params, request.body.read)
+  if !ret
+    return [404, {:error => "not found"}.to_json]
+  end
+  ret.to_json
+end
+
+# @method update_v1_node_group
+# @overload PUT "/v1/job/:id/nodeGroup/:nodeGroupId"
+# Update an existing workflow graph's node group. {Lipstick::Graph::NodeGroup} for spec.
+# If the node group doesn't currently exist in the graph it is added. New node group
+# properties are recursively merged into existing node group properties.
+# @param id [String] The id of the workflow graph to update
+# @param nodeGroupId [String] The id of the node group to create or update.
+# @param body [String] JSON object containing a valid representation of a
+#   {Lipstick::Graph::NodeGroup} object. A partial representation (eg. just node
+#   group status) works.
+# @return [String] A json string either containing the id of the
+#     graph updated or an error if the update failed.
+# @see Lipstick::Graph::NodeGroup
+# @example
+#   # Create graph and add a node group
+#   $: curl -XPOST "localhost:9292/v1/job" -d -d '{"name":"mygraph","id":"mygraph","nodes":[{"id":"A"}],"edges":[]}'
+#   {"id":"mygraph"}
+#   $: curl -XPUT "localhost:9292/v1/job/mygraph/nodeGroup/1" -d '{"id":"1","children":["A"]}' 
+#   {"status":"updated uuid mygraph"}
+# @example
+#   # Update a node group's status
+#   $: curl -XPUT "localhost:9292/v1/job/mygraph/nodeGroup/1" -d '{"status":{"progress":"100"}}'
+#   {"status":"updated uuid mygraph"}
+put '/v1/job/:id/nodeGroup/:nodeGroupId' do
+  request.body.rewind
+  ret = PlanService.update_graph_node_group(params, request.body.read)
+  if !ret
+    return [404, {:error => "not found"}.to_json]
+  end
+  ret.to_json
+end
+
+# @method update_v1_edge
+# @overload PUT "/v1/job/:id/edge?u=:u&v=:v"
+# Update an existing workflow graph's edge. {Lipstick::Graph::Edge} for spec.
+# If the edge doesn't currently exist in the graph it is added. New edge
+# properties are recursively merged into existing edge properties.
+# @param id [String] The id of the workflow graph to update
+# @param u [String] The source node id of the edge to update
+# @param v [String] The target node id of the edge to update
+# @param body [String] JSON object containing a valid representation of a
+#   {Lipstick::Graph::Edge} object. A partial representation (eg. just edge
+#   properties) works.
+# @return [String] A json string either containing the id of the
+#     graph updated or an error if the update failed.
+# @see Lipstick::Graph::Edge
+# @example
+#   # Create graph and add an edge
+#   $: curl -XPOST "localhost:9292/v1/job" -d -d '{"name":"mygraph","id":"mygraph","nodes":[{"id":"A"}, {"id":"B"}],"edges":[]}'
+#   {"id":"mygraph"}
+#   $: curl -XPUT "localhost:9292/v1/job/mygraph/edge?u=A&v=B" -d '{"u":"A","v":"B"}' 
+#   {"status":"updated uuid mygraph"}
+# @example
+#   # Update an edge's properties (eg. sample data)
+#   $: curl -XPUT "localhost:9292/v1/job/mygraph/edge?u=A&v=B" -d '{"properties":{"sampleOutput":["a\u00011\nb\u00012"],
+#         "schema":[
+#           {"type":"CHARARRAY", "alias":"name"},
+#           {"type":"INTEGER", "alias":"value"}
+#         ]
+#       }'
+#   {"status":"updated uuid mygraph"}
+put '/v1/job/:id/edge/?' do
+  request.body.rewind
+  ret = PlanService.update_graph_edge(params, request.body.read)
+  if !ret
+    return [404, {:error => "not found"}.to_json]
   end
   ret.to_json
 end
