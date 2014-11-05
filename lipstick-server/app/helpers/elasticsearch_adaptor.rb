@@ -90,6 +90,10 @@ class ElasticSearchAdaptor
     end        
   end
 
+  def refresh!
+    client.admin.indices.prepare_refresh(@index).execute.action_get
+  end
+  
   @@instance = ElasticSearchAdaptor.new
 
   def self.instance

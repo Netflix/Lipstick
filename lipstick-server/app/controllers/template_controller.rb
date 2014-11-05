@@ -41,6 +41,7 @@ class TemplateService
       }
     end    
   end
+  
 end
 
 # @method get_templates

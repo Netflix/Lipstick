@@ -193,6 +193,15 @@ project(':lipstick-server') {
     args '-S', '.gem/bin/warble'
     main = "org.jruby.Main"
   }
+
+  task('test-app', type:JavaExec, dependsOn: ['gems', 'importJar'])  {
+    environment('RUBYLIB', '.')
+    environment('RACK_ENV', 'development')
+    environment('GEM_HOME', gemHome)    
+    classpath configurations.runtime  
+    args '-S', 'app/test/lipstick_test.rb'
+    main = "org.jruby.Main"
+  }
 }
 
 project(':lipstick-console') {
