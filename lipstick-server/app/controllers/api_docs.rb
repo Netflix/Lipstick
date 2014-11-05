@@ -13,11 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-get '/doc' do
-  redirect '/doc/index.html'
-end
-
 get '/apidocs' do
-  redirect '/doc/top-level-namespace.html'
+  redirect to('/doc/top-level-namespace.html')
 end
