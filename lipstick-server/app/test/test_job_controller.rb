@@ -77,6 +77,25 @@ class JobControllerTest < Test::Unit::TestCase
     @expected_put_response = {
       'status' => 'updated uuid '+@graph['id']
     }
+    @node_update = {
+      'id' => 'optimized-a',
+      'status' => {'statusText' => 'failed'}
+    }
+    @node_group_update = {
+      'id' => '3',
+      'status' => {'statusText' => 'failed'}
+    }
+    @edge_update = {
+      'u' => 'unoptimized-a',
+      'v' => 'unoptimized-b',
+      'properties' => {
+        'sampleOutput' => ['a\u00011\nb\u00012'],
+        'schema' => [
+          {'type' => 'CHARARRAY', 'alias' => 'name'},
+          {'type' => 'INTEGER', 'alias' => 'value'}
+        ]
+      }
+    }
     PlanService.save_graph({}, @graph.to_json)
     ElasticSearchAdaptor.instance.refresh!
   end
@@ -112,6 +131,48 @@ class JobControllerTest < Test::Unit::TestCase
 
     assert_equal expected_ng['status'], ng['status']
     assert_equal expected_node['status']['statusText'], node['status']['statusText']
+  end
+
+  def test_update_node
+    put '/v1/job/'+@graph['id']+'/node/'+@node_update['id'], @node_update.to_json
+    assert last_response.ok?
+    assert_equal @expected_put_response, JSON.parse(last_response.body)
+
+    ElasticSearchAdaptor.instance.refresh!
+    get '/v1/job/'+@graph['id']
+    assert last_response.ok?
+
+    updated = JSON.parse(last_response.body)
+    node = updated['nodes'].find{|x| x['id'] == @node_update['id']}
+    assert_equal @node_update['status']['statusText'], node['status']['statusText']
+  end
+
+  def test_update_edge
+    put '/v1/job/'+@graph['id']+'/edge/?u='+@edge_update['u']+'&v='+@edge_update['v'], @edge_update.to_json
+    assert last_response.ok?
+    assert_equal @expected_put_response, JSON.parse(last_response.body)
+
+    ElasticSearchAdaptor.instance.refresh!
+    get '/v1/job/'+@graph['id']
+    assert last_response.ok?
+
+    updated = JSON.parse(last_response.body)
+    edge = updated['edges'].find{|x| (x['u'] == @edge_update['u'] && x['v'] == @edge_update['v'])}
+    assert_equal @edge_update['properties'], edge['properties']
+  end
+
+  def test_update_node_group
+    put '/v1/job/'+@graph['id']+'/nodeGroup/'+@node_group_update['id'], @node_group_update.to_json
+    assert last_response.ok?
+    assert_equal @expected_put_response, JSON.parse(last_response.body)
+
+    ElasticSearchAdaptor.instance.refresh!
+    get '/v1/job/'+@graph['id']
+    assert last_response.ok?
+
+    updated = JSON.parse(last_response.body)
+    node_group = updated['node_groups'].find{|x| x['id'] == @node_group_update['id']}
+    assert_equal @node_group_update['status']['statusText'], node_group['status']['statusText']
   end
   
 end

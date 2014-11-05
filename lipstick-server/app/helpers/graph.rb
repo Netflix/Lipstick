@@ -247,6 +247,7 @@ module Lipstick
       edges = data['edges'].map{|e| Edge.from_hash(e)}
       name  = data['name'] || "workflow-"+data['id']
       
+      node_groups = []
       if (data['node_groups'] && data['node_groups'].is_a?(Array))
         node_groups = data['node_groups'].map{|g| NodeGroup.from_hash(g)}
       end
@@ -271,6 +272,10 @@ module Lipstick
       node_groups.find{|x| x.id == id}
     end
 
+    def get_edge u, v
+      edges.find{|e| (e.u == u && e.v == v)}
+    end
+    
     #
     # @version 1.0
     # Represents the status of a workflow {Graph}, {Node}, or {NodeGroup}.
@@ -335,7 +340,15 @@ module Lipstick
         endTime       = hsh['endTime']
         statusText    = hsh['statusText']
         Status.new(progress, startTime, heartbeatTime, endTime, statusText)
-      end            
+      end
+
+      def update_with! data
+        @progress   = data['progress'] if data['progress']
+        @startTime  = data['startTime'] if data['startTime']
+        @endTime    = data['endTime'] if data['endTime']
+        @statusText = data['statusText'] if data['statusText'] 
+      end
+      
     end
 
     #
@@ -428,6 +441,14 @@ module Lipstick
         Node.new(hsh['id'], properties, child, type, status)
       end
 
+      def update_with! data
+        @id     = data['id']    if data['id']
+        @child  = data['child'] if data['child']
+        @type   = data['type']  if data['type']
+        @status.update_with!(data['status']) if data['status']
+        @properties.merge!(data['properties']) if data['properties']
+      end
+      
       def has_child?
         (@child != nil)
       end
@@ -504,6 +525,14 @@ module Lipstick
         type = (hsh['type'] || 'PigEdge')
         Edge.new(hsh['u'], hsh['v'], properties, type)
       end
+
+      def update_with! data
+        @u    = data['u'] if data['u']
+        @v    = data['v'] if data['v']
+        @type = data['type'] if data['type']
+        @properties.merge!(data['properties']) if data['properties']
+      end
+      
     end
 
     #
@@ -581,6 +610,13 @@ module Lipstick
         NodeGroup.new(hsh['id'], hsh['children'], properties, status)
       end
 
+      def update_with! data
+        @id       = data['id'] if data['id']
+        @children = data['children'] if data['children']
+        @status.update_with!(data['status']) if data['status']
+        @properties.merge!(data['properties']) if data['properties']
+      end
+      
       def has_parent?
         (@parent != nil)
       end      
