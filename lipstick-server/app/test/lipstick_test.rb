@@ -1,0 +1,5 @@
+require 'init'
+require 'test/unit'
+require 'rack/test'
+require 'app/test/test_template_controller'
+require 'app/test/test_job_controller'

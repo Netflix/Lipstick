@@ -117,7 +117,7 @@ class PlanService
 
     graph = Lipstick::Graph.from_json(graph)    
     data  = JSON.parse(json)
-    graph.status = data['status']
+    graph.status = data['status'] if data['status']
 
     if (data['node_groups'] && data['node_groups'].is_a?(Array))
       data['node_groups'].each do |ng|

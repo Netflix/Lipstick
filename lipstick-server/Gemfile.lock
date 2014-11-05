@@ -6,6 +6,8 @@ GEM
     rack (1.5.2)
     rack-protection (1.5.3)
       rack
+    rack-test (0.6.2)
+      rack (>= 1.0)
     rake (10.3.2)
     rubyzip (1.1.6)
     sinatra (1.4.5)
@@ -24,6 +26,7 @@ PLATFORMS
   java
 
 DEPENDENCIES
+  rack-test
   sinatra
   warbler
   yard
