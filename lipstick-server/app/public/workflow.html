@@ -95,7 +95,7 @@
     <tbody data-bind="foreach: graph().nodeGroups">
       <tr data-bind="attr: {'data-tt-id': name, 'data-tt-parent-id': immediateParent}">        
         <td class="ng-name">
-          <span data-bind="text: name"></span>
+          <span data-bind="html: title"></span>
           <span class="glyphicon pull-right show-subgraph"
                 data-bind="css: {'glyphicon-eye-open':$parent.current.subGraph() === name(),
                            'glyphicon-eye-close':$parent.current.subGraph() !== name()}, click: $parent.clickedNodeGroupSideBar">
@@ -109,7 +109,7 @@
   </script>
 
   <script type="text/html" id="ng-name-template">
-    <h5 data-bind="text: name"></h5>
+    <h5 data-bind="html: title"></h5>
   </script>
 
   <script type="text/html" id="ng-progress-template">
