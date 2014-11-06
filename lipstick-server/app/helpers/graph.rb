@@ -72,7 +72,7 @@ module Lipstick
   #           "statusText":"failed"
   #         }
   #       },
-  #       {"id": "2", "children": ["c","d"]},
+  #       {"id": "2", "url":"http://localhost:8088/proxy/application_xxx/", "children": ["c","d"]},
   #       {"id": "3", "children": ["e","f","g"]},
   #       {"id": "4", "children": ["h","i","j"],
   #         "properties": {
@@ -405,15 +405,22 @@ module Lipstick
       # @return [String] 
       attr_accessor :child
 
+      # @note Optional
+      # Url to more information about this node. Allows a node to reference
+      # an external resource.
+      # @return [String]
+      attr_accessor :url
+      
       # @private
       attr_accessor :parent
       
-      def initialize id, properties, child, type, status
+      def initialize id, properties, child, type, status, url
         @id         = id
         @child      = child
         @type       = type
         @properties = properties
         @status     = status
+        @url        = url
       end
 
       def to_hash
@@ -421,14 +428,16 @@ module Lipstick
           :id        => id,
           :properties => properties,
           :type       => type,
-          :status     => (status ? status.to_hash : {})
+          :status     => (status ? status.to_hash : {})          
         }
         res[:child] = child if child
+        res[:url]   = url   if url
         res
       end
       
       def self.from_hash hsh
         raise ArgumentError, "All nodes must have an id" unless hsh['id']
+        url        = hsh['url']
         child      = hsh['child']
         properties = (hsh['properties'] || {})
         type       = (hsh['type'] || 'PigNode') # every time put or post is done for templates; reload it
@@ -438,13 +447,14 @@ module Lipstick
           status = Status.from_hash(hsh['status'])
         end
         
-        Node.new(hsh['id'], properties, child, type, status)
+        Node.new(hsh['id'], properties, child, type, status, url)
       end
 
       def update_with! data
         @id     = data['id']    if data['id']
         @child  = data['child'] if data['child']
         @type   = data['type']  if data['type']
+        @url    = data['url']   if data['url']
         @status.update_with!(data['status']) if data['status']
         @properties.merge!(data['properties']) if data['properties']
       end
@@ -580,23 +590,32 @@ module Lipstick
       # @return [Status] 
       attr_accessor :status
 
+      # @note Optional
+      # Url to more information about this node group. Allows a node
+      # group to reference an external resource.
+      # @return [String]
+      attr_accessor :url
+      
       # @private
       attr_accessor :parent
 
-      def initialize id, children, properties, status
+      def initialize id, children, properties, status, url
         @id         = id
         @children   = children
         @properties = properties
         @status     = status
+        @url        = url
       end
 
       def to_hash
-        {
+        r = {
           :id         => id,
           :children   => children,
           :status     => (status ? status.to_hash : {}),
-          :properties => properties          
-        }        
+          :properties => properties
+        }
+        r[:url] = url if url
+        r
       end
       
       def self.from_hash hsh
@@ -606,12 +625,13 @@ module Lipstick
         if (hsh['status'] && hsh['status'].is_a?(Hash))
           status = Status.from_hash(hsh['status'])
         end
-        
-        NodeGroup.new(hsh['id'], hsh['children'], properties, status)
+        url = hsh['url']
+        NodeGroup.new(hsh['id'], hsh['children'], properties, status, url)
       end
 
       def update_with! data
-        @id       = data['id'] if data['id']
+        @id       = data['id']  if data['id']
+        @url      = data['url'] if data['url']
         @children = data['children'] if data['children']
         @status.update_with!(data['status']) if data['status']
         @properties.merge!(data['properties']) if data['properties']
