@@ -6,6 +6,27 @@ define(['knockout'], function(ko) {
         self.heartbeatTime = ko.observable(data.heartbeatTime);
         self.endTime = ko.observable(data.endTime);
         self.statusText = ko.observable(data.statusText);
+
+        self.timeString = function(ms) {
+            var d = new Date(ms);
+            return d.toLocaleDateString()+' '+d.toLocaleTimeString();
+        };
+
+        self.startTimeString = ko.computed(function() {
+            return self.timeString(self.startTime());
+        });
+
+        self.endTimeString = ko.computed(function() {
+            if (self.endTime() && self.endTime() > 0) {
+                return self.timeString(self.endTime());
+            } else {
+                return;
+            }
+        });
+
+        self.heartbeatTimeString = ko.computed(function() {
+            return self.timeString(self.heartbeatTime());
+        });
         
         self.progressText = ko.computed(function() {
             if (self.progress()) {

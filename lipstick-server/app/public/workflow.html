@@ -77,9 +77,9 @@
   <script type="text/html" id="status-template">
     <table class="table table-condensed">
       <tr><td>Status:</td><td data-bind="text: $data.statusText"></td></tr>
-      <tr><td>Start:</td><td data-bind="text: $data.startTime"></td></tr>
-      <tr><td>End:</td><td data-bind="text: $data.endTime"></td></tr>
-      <tr><td>Heartbeat:</td><td data-bind="text: $data.heartbeatTime"></td></tr>
+      <tr><td>Start:</td><td data-bind="text: $data.startTimeString"></td></tr>
+      <tr><td>End:</td><td data-bind="text: $data.endTimeString"></td></tr>
+      <tr><td>Heartbeat:</td><td data-bind="text: $data.heartbeatTimeString"></td></tr>
     </table>
   </script>
 
@@ -118,9 +118,9 @@
         <tr>
           <td class="progress">
             <div class="progress-bar" role="progress" data-bind="attr: {'aria-valuenow': 'status.progress'},
-                            css: status.progressCss,
-                            style: {width: status.progressText},
-                            text: status.progressText"
+                            css: status().progressCss,
+                            style: {width: status().progressText},
+                            text: status().progressText"
                  aria-valuemin="0" aria-valuemax="100"></div>
           </td>
         </tr>
