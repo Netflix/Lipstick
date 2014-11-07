@@ -13,7 +13,7 @@ define(['jquery', 'lib/dagre-d3.min', 'knockout', './status', './node_group', '.
                    self.graphMap = {};
                    self.nodeGroupMap = {};
                    
-                   self.status = ko.observable(data.status ? data.status : new Status({}));
+                   self.status = ko.observable(new Status(data.status || {}));
                    self.properties = ko.observable(data.properties ? data.properties : {});
                    self.nodeGroups = ko.observableArray();
                    self.nodes = ko.observableArray();
@@ -44,6 +44,37 @@ define(['jquery', 'lib/dagre-d3.min', 'knockout', './status', './node_group', '.
                        self.subgraphs();
                        self.sortedLayers();
                    };                                      
+
+                   self.updateWith = function(data) {
+                       if (data.status) {self.status().updateWith(data.status);}
+                       if (data.properties) {self.properties(data.properties);}
+                       if (data.node_groups) {
+                           $.each(data.node_groups, function(i, nodeGroup) {
+                               var ng = self.nodeGroup(nodeGroup.id);
+                               if (ng) {ng.status().updateWith(nodeGroup.status);}
+                           });
+                       }
+                       if (data.nodes) {
+                           $.each(data.node_groups, function(i, node) {
+                               var n = self.node(node.id);
+                               if (n) {n.status().updateWith(node.status);}
+                           });
+                       }
+                   };
+
+                   self.nodesWithStatus = function(statusText) {                       
+                       var filtered = self.nodes().filter(function(n) {
+                           return (n.status().statusText() === statusText);
+                       });
+                       return filtered;
+                   };
+
+                   self.nodeGroupsWithStatus = function(statusText) {
+                       var filtered = self.nodeGroups().filter(function(ng) {
+                           return (ng.status().statusText() === statusText);
+                       });
+                       return filtered;
+                   };
                    
                    self.node = function(id) {
                        return self.graphMap[id];

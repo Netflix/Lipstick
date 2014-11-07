@@ -1,7 +1,7 @@
 define(
-    ['jquery', 'transit', 'knockout', 'd3', 'lib/dagre-d3.min',
+    ['jquery', 'transit', 'lodash.min', 'knockout', 'd3', 'lib/dagre-d3.min',
      'bootstrap', 'treetable', 'workflow/graph/graph'],
-    function($, transit, ko, d3, dagreD3, bootstrap, treetable, WorkflowGraph) {              
+    function($, transit, _, ko, d3, dagreD3, bootstrap, treetable, WorkflowGraph) {              
 
         function WorkflowViewModel() {
             var self = this;
@@ -12,6 +12,10 @@ define(
             self.active = d3.select(null);
             self.svg = d3.select(null);
             self.svgGraph = d3.select(null);
+            self.svgNodes = d3.select(null);
+            self.svgClusters = d3.select(null);
+            self.svgClusterRects = d3.select(null);
+            self.pulseInterval = undefined;
             self.initialZoom = {
                 x: 0, y:0, scale: 1
             };
@@ -34,7 +38,7 @@ define(
             };
             
             self.initialize = function(uuid) {
-                self.uuid = uuid;
+                self.uuid = uuid;                
                 $.ajax({
                     type: 'GET',
                     url:  self.baseUrl + uuid
@@ -46,9 +50,54 @@ define(
                     } else {                    
                         self.renderSvg(self.current.subGraph());
                     }
-                    self.initializeSvg();                    
+                    self.initializeSvg();
+                    self.getUpdatedGraph();
                 }).fail(function() {
                 });
+
+                clearInterval(self.pulseInterval);
+                self.pulseInterval = setInterval(self.pulse, 2000);
+            };
+
+            self.getUpdatedGraph = function() {
+                $.ajax({
+                    type: 'GET',
+                    url:  self.baseUrl + self.uuid
+                }).done(function(json) {
+                    self.graph().updateWith(json);
+                    if (self.graph().status().statusText().toLowerCase() === "running") {
+                        _.delay(self.getUpdatedGraph, 5000);
+                        self.pulse();
+                    } else {
+                        clearInterval(self.pulseInterval);
+                        self.pulse();
+                    }
+                }).fail(function() {
+                    _.delay(self.getUpdatedGraph, 5000);
+                });
+            };
+
+            self.pulse = function() {
+                // Pulse Running jobs
+                self.svgClusterRects.filter(function(clusterId, idx) {
+                    return (self.graph().nodeGroup(clusterId).status().statusText() === "running");
+                }).transition().duration(1000).style('fill', 'rgb(233,233,233)')
+                    .transition().duration(1000).style('fill', 'rgb(50,153,187)');
+                
+                self.svgClusterRects.filter(function(clusterId, idx) {
+                    return (self.graph().nodeGroup(clusterId).status().statusText() === "finished");
+                }).transition().duration(1000).style('fill', 'rgb(207,225,232)');
+
+                self.svgClusterRects.filter(function(clusterId, idx) {
+                    var statusText = self.graph().nodeGroup(clusterId).status().statusText();
+                    return (statusText === "terminated" || statusText === "failed");
+                }).transition().duration(1000).style('fill', 'rgb(255,235,235)');
+
+                // HACK - Warnings is not a general feature of node groups
+                self.svgClusterRects.filter(function(clusterId, idx) {
+                    var warnings = self.graph().nodeGroup(clusterId).properties().warnings;
+                    return (warnings && Object.keys(warnings).length > 0);
+                }).transition().duration(1000).style('fill', 'rgb(255,214,173)');
             };
             
             self.renderSvg = function(subgraph) {
@@ -60,7 +109,7 @@ define(
                 var graphContainer = d3.select(self.graphSel);                
                 self.svg = graphContainer.append("svg"),
                 self.svgGraph = self.svg.append("g");
-
+                
                 // Run the renderer. This is what draws the final graph.
                 render(d3.select("svg g"), g);
 
@@ -70,7 +119,13 @@ define(
                 self.svg.attr("width", g.graph().width+40+graphContainerRect.width);
 
                 self.svgGraph.attr("transform", "translate(20, 20)");
-                d3.selectAll("g.cluster rect").attr("style", "fill-opacity: 0.6;");
+
+                self.svgClusters = d3.selectAll('g.cluster');
+                self.svgNodes = d3.selectAll('g.node');
+
+                self.svgClusterRects = self.svgClusters.selectAll("rect");
+                self.svgClusters.attr("id", function(id) { return id; });
+                self.svgClusterRects.style('fill-opacity', 0.6);
                 
                 self.graphNotRendered(false);
                 self.current.subGraph(subgraph);

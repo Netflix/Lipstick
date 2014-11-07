@@ -62,7 +62,7 @@ module Lipstick
             mapProgress = jobStatus.mapProgress ? jobStatus.mapProgress.to_f : 0
             reduceProgress = jobStatus.reduceProgress ? jobStatus.reduceProgress.to_f : 0
 
-            statusText = ""
+            statusText = nil
             if jobStatus.isComplete
               if jobStatus.isSuccessful
                 statusText = "finished"
