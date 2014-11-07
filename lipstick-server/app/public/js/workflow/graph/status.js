@@ -27,6 +27,15 @@ define(['knockout'], function(ko) {
                 return 'progress-bar-striped';
             }
         });
+        self.updateWith = function(data) {
+            if (data) {
+                if (data.progress) {self.progress(data.progress);}
+                if (data.startTime) {self.startTime(data.startTime);}
+                if (data.endTime) {self.endTime(data.endTime);}
+                if (data.heartbeatTime) {self.heartbeatTime(data.heartbeatTime);}
+                if (data.statusText) {self.statusText(data.statusText);}
+            }
+        };
     };
     return Status;
 });

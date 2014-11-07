@@ -310,10 +310,14 @@ module Lipstick
       attr_accessor :endTime
 
       # @note Optional
-      # Human readable status text
+      # Human readable status text. One of ["running", "terminated", "failed", "finished"]
       # @return [String] 
       attr_accessor :statusText
 
+      STATES = [
+        "running", "failed", "finished", "terminated"
+      ]
+      
       def initialize progress, startTime, heartbeatTime, endTime, statusText
         @progress      = progress
         @startTime     = startTime
@@ -339,6 +343,11 @@ module Lipstick
         heartbeatTime = hsh['heartbeatTime'] || Time.now.to_i*1000
         endTime       = hsh['endTime']
         statusText    = hsh['statusText']
+        if statusText
+          if !STATES.include?(statusText.downcase)
+            raise ArgumentError, "statusText must be one of [#{STATES.join(',')}]" 
+          end
+        end        
         Status.new(progress, startTime, heartbeatTime, endTime, statusText)
       end
 
