@@ -9,7 +9,9 @@ define(['knockout', 'lib/mustache', './status', '../utils', '../templates'],
                self.properties = ko.observable(data.properties);
                self.type = ko.observable(data.type);
                self.url = ko.observable(data.url);
-               self.treeTable = ko.observableArray(utils.flatten(data.properties));
+               self.treeTable = ko.observableArray(
+                   utils.sortTreeTable(utils.flatten(data.properties))
+               );
 
                self.render = function() {
                    var template = templates.templates[self.type()];

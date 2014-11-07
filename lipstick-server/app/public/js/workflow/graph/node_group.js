@@ -8,7 +8,9 @@ define(['knockout', './status', '../utils'], function(ko, Status, utils) {
         self.children = ko.observableArray(data.children);
         self.id = ko.observable(data.id);
         self.immediateParent = ko.observable(data.immediateParent);
-        self.treeTable = ko.observableArray(utils.flatten(data.properties));
+        self.treeTable = ko.observableArray(
+            utils.sortTreeTable(utils.flatten(data.properties))
+        );
 
         self.title = ko.computed(function() {
             if (self.url()) {
