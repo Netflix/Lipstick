@@ -27,7 +27,8 @@
          {"type":"CHARARRAY", "alias":"name"},
          {"type":"INTEGER", "alias":"value"}
        ]
-     }
+     },
+     "label":"shoebox"
     },
     {"u": "unoptimized-a", "v": "unoptimized-b"}
   ],

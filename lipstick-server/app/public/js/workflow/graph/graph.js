@@ -246,9 +246,13 @@ define(['jquery', 'lib/dagre-d3.min', 'knockout', './status', './node_group', '.
                            var edgeId = "edgeLabel_"+edge.u()+"->"+edge.v();            
                            var edgeData = {labelType: "html", lineInterpolate: "basis"};
                            if (_.size(edge.properties()) > 0) {
-                               edgeData.label = "<div id='"+edgeId+"' class='edge-label edge-info-label'>&#8505;</div>"                
+                               edgeData.label = "<div id='"+edgeId+"' class='edge-label edge-info-label'>&#8505;</div>"                               
                            } else {
                                edgeData.label = "<div id='"+edgeId+"' class='edge-label'></div>"
+                           }
+                           if (edge.label()) {
+                               console.log(edge.label());
+                               edgeData.label = edgeData.label + "<h6>"+edge.label()+"</h6>"
                            }
                            if (g.hasNode(edge.u()) && g.hasNode(edge.v())) {
                                g.setEdge(edge.u(), edge.v(), edgeData);

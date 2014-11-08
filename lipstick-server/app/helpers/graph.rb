@@ -509,6 +509,15 @@ module Lipstick
       attr_accessor :type
 
       # @note Optional
+      # Edge label. Since this will be rendered on the graph alongside the edge,
+      # it's recommended to use simple properties (eg. an edge weight or
+      # record count) rather than something that will compete for visual attention.
+      # @example
+      #   "42"
+      # @return [String] 
+      attr_accessor :label
+
+      # @note Optional
       # Arbitrary key-value attributes for the edge. Templates
       # (referenced by {#type}) will be rendered using properties
       # pulled from here.
@@ -523,32 +532,37 @@ module Lipstick
       # @return [Hash] 
       attr_accessor :properties
       
-      def initialize u, v, properties, type
+      def initialize u, v, properties, type, label
         @u = u
         @v = v
+        @label = label
         @type = type
         @properties = properties
       end
 
       def to_hash
-        {
+        r = {
           :u => u,
           :v => v,
           :type => type,
           :properties => properties
         }
+        r[:label] = label if label
+        r
       end
       
       def self.from_hash hsh
         properties = (hsh['properties'] || {})
         type = (hsh['type'] || 'PigEdge')
-        Edge.new(hsh['u'], hsh['v'], properties, type)
+        label = hsh['label']
+        Edge.new(hsh['u'], hsh['v'], properties, type, label)
       end
 
       def update_with! data
-        @u    = data['u'] if data['u']
-        @v    = data['v'] if data['v']
-        @type = data['type'] if data['type']
+        @u     = data['u'] if data['u']
+        @v     = data['v'] if data['v']
+        @label = data['label'] if data['label']
+        @type  = data['type'] if data['type']
         @properties.merge!(data['properties']) if data['properties']
       end
       
