@@ -15,11 +15,13 @@ define(['knockout', './status', '../utils'], function(ko, Status, utils) {
         self.title = ko.computed(function() {
             if (self.url()) {
                 // HACK - handles legacy MRJob case
-                if (self.properties().jobId)
+                if (self.properties() && self.properties().jobId)
                     return '<a href="'+self.url()+'">'+self.properties().jobId+'</a>';
                 else {
                     return '<a href="'+self.url()+'">'+self.name()+'</a>';
                 }
+            } else if (self.properties() && self.properties().jobId) {
+                return self.properties().jobId;
             } else {
                 return self.name();
             }

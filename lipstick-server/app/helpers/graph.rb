@@ -275,6 +275,42 @@ module Lipstick
     def get_edge u, v
       edges.find{|e| (e.u == u && e.v == v)}
     end
+
+    #
+    # Insert or update an edge
+    #
+    def update_edge! u, v, data
+      edge = get_edge(u, v)
+      if edge # update existing node group
+        edge.update_with!(data)
+      else # create new node
+        edges << Edge.from_hash(data)
+      end
+    end
+
+    #
+    # Insert or update a node
+    # 
+    def update_node! id, data
+      node = get_node(id)
+      if node # update existing node
+        node.update_with!(data)
+      else # create new node
+        nodes << Node.from_hash(data)
+      end
+    end
+
+    #
+    # Insert or update a node group
+    #
+    def update_node_group! id, data
+      node_group = get_node_group(id)
+      if node_group # update existing node group
+        node_group.update_with!(data)
+      else # create new node group
+        node_groups << NodeGroup.from_hash(data)
+      end
+    end
     
     #
     # @version 1.0
@@ -509,6 +545,15 @@ module Lipstick
       attr_accessor :type
 
       # @note Optional
+      # Edge label. Since this will be rendered on the graph alongside the edge,
+      # it's recommended to use simple properties (eg. an edge weight or
+      # record count) rather than something that will compete for visual attention.
+      # @example
+      #   "42"
+      # @return [String] 
+      attr_accessor :label
+
+      # @note Optional
       # Arbitrary key-value attributes for the edge. Templates
       # (referenced by {#type}) will be rendered using properties
       # pulled from here.
@@ -523,32 +568,37 @@ module Lipstick
       # @return [Hash] 
       attr_accessor :properties
       
-      def initialize u, v, properties, type
+      def initialize u, v, properties, type, label
         @u = u
         @v = v
+        @label = label
         @type = type
         @properties = properties
       end
 
       def to_hash
-        {
+        r = {
           :u => u,
           :v => v,
           :type => type,
           :properties => properties
         }
+        r[:label] = label if label
+        r
       end
       
       def self.from_hash hsh
         properties = (hsh['properties'] || {})
         type = (hsh['type'] || 'PigEdge')
-        Edge.new(hsh['u'], hsh['v'], properties, type)
+        label = hsh['label']
+        Edge.new(hsh['u'], hsh['v'], properties, type, label)
       end
 
       def update_with! data
-        @u    = data['u'] if data['u']
-        @v    = data['v'] if data['v']
-        @type = data['type'] if data['type']
+        @u     = data['u'] if data['u']
+        @v     = data['v'] if data['v']
+        @label = data['label'] if data['label']
+        @type  = data['type'] if data['type']
         @properties.merge!(data['properties']) if data['properties']
       end
       

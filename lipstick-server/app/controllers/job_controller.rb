@@ -28,7 +28,12 @@ class PlanService
   @@om.set_serialization_inclusion(JsonSerialize::Inclusion::NON_NULL)
 
   #
-  # Wrap deserialization
+  # Wrap object mapper deserialization of json
+  # @param json [String] JSON encoded string to
+  #   deserialize
+  # @param java_class [Class] Java class to
+  #   instantiate
+  # @return [Object]
   #
   def self.p2j_from_json json, java_class
     ser = nil
@@ -40,10 +45,23 @@ class PlanService
     end
     return ser
   end
-  
+
+  #
+  # @deprecated
+  # Save P2jPlanPackage representation of workflow. Currently
+  # it's saved both as a P2jPlanPackage as well as translated to
+  # the new representation, {Lipstick::Graph}, and saved.
+  # @param params [Hash] POST request parameters
+  # @param json [String] JSON encoded P2jPlanPackage object
+  # @return [Hash]
+  #
   def self.save params, json
     ser  = p2j_from_json(json, P2jPlanPackage.java_class)
     return unless ser
+
+    # Translate to new representation and save 
+    save_p2j_graph(json)
+    #
     
     uuid = ser.get_uuid
     
@@ -53,7 +71,6 @@ class PlanService
     svg = Pig2DotGenerator.new(ser.get_unoptimized).generate_plan("svg")
     ser.get_unoptimized.set_svg(svg)
 
-    # post ser.to_json to elasticsearch
     if @@es.save(uuid, 'plan', @@om.write_value_as_string(ser))
       return {
         :uuid    => uuid,
@@ -67,10 +84,64 @@ class PlanService
   end
 
   #
-  # Save lipstick 2.0 graph
+  # Translate an update to a P2jPlanPackage object to
+  # an update to the corresponding {Lipstick::Graph} object
+  # @param params [Hash] Request parameters. Required :id
+  # @param json [String] JSON encoded P2jPlanPackage object
+  # @return [Hash]
+  #
+  def self.update_p2j_graph params, json
+    begin
+      new_json = Lipstick::Adapter::P2jPlanPackage.from_json(json).to_graph.to_json
+      update_graph(params, new_json)
+    rescue ArgumentError => e
+      return {
+        :error => e.to_s
+      }
+    end        
+  end
+
+  #
+  # Translate a P2jPlanPackage object to a {Lipstick::Graph}
+  # and save
+  # @param json [String] JSON encoded P2jPlanPackage object
+  # @return [Hash]
+  #
+  def self.save_p2j_graph json
+    begin
+      graph = Lipstick::Adapter::P2jPlanPackage.from_json(json).to_graph
+      store(graph)
+    rescue ArgumentError => e
+      return {
+        :error => e.to_s
+      }
+    end    
+  end
+
+  #
+  # Save {Lipstick::Graph}
+  # @param params [Hash] Request parameters
+  # @param json [String] JSON encorded {Lipstick::Graph}
+  # @return [Hash]
   #
   def self.save_graph params, json
-    graph = Lipstick::Graph.from_json(json)
+    begin
+      graph = Lipstick::Graph.from_json(json)
+      store(graph)
+    rescue ArgumentError => e
+      return {
+        :error => e.to_s
+      }
+    end    
+  end
+  
+  #
+  # Store {Lipstick::Graph} to Elasticsearch
+  # @param graph [Lipstick::Graph]
+  # @return [Hash]
+  #
+  def self.store graph
+    graph.updated_at = Time.now.to_i*1000
     if @@es.save(graph.id.to_s, 'graph', graph.to_json)
       return {
         :id => graph.id.to_s
@@ -82,6 +153,15 @@ class PlanService
     end
   end
 
+  #
+  # @deprecated
+  # Adds sample output to a P2jPlanPackage object
+  # @param id [String] Plan uuid to update with sample data
+  # @param job_id [String] Specific map-reduce job_id to
+  #   update
+  # @param json [String] JSON encoded P2jSampleOutputList object
+  # @return [Hash]
+  #
   def self.add_sample_output id, job_id, json
     plan = @@es.get(id, 'plan')
     return unless plan
@@ -96,7 +176,12 @@ class PlanService
     output_map[job_id] = sample_output_list
     plan.setSampleOutputMap(output_map)
 
-    if @@es.save(id, 'plan', @@om.write_value_as_string(plan))
+    updated = @@om.write_value_as_string(plan)
+
+    # Update {Lipstick::Graph} representation
+    update_p2j_graph({:id => id}, updated)
+    
+    if @@es.save(id, 'plan', updated)
       return {:uuid => id, :jobId => job_id}
     else
       return {:error => "failed to save sampleoutput"}
@@ -112,7 +197,11 @@ class PlanService
   end
 
   #
-  # Updates plan status
+  # @deprecated
+  # Updates plan status for a P2jPlanPackage object
+  # @param params [Hash] Request parameters. Requires :id
+  # @param json [String] JSON encoded P2jPlanStatus object
+  # @return [Hash]
   #
   def self.update params, json
     plan = @@es.get(params[:id], 'plan')
@@ -125,7 +214,12 @@ class PlanService
     return unless status
     
     plan.status.update_with(status)
-    if @@es.save(params[:id], 'plan', @@om.write_value_as_string(plan))
+    updated = @@om.write_value_as_string(plan)
+
+    # Update {Lipstick::Graph} representation
+    update_p2j_graph(params, updated)
+
+    if @@es.save(params[:id], 'plan', updated)
       return {:status => "updated uuid #{params[:id]}"}
     else      
       return
@@ -136,44 +230,30 @@ class PlanService
     graph = @@es.get(params[:id], 'graph')
     return unless graph
 
-    graph = Lipstick::Graph.from_json(graph)    
-    data  = JSON.parse(json)
-
-    graph_node = graph.get_node(params[:nodeId])
-    if graph_node # update existing node
-      graph_node.update_with!(data)
-    else # create new node
-      graph.nodes << Lipstick::Graph::Node.from_hash(data)
-    end
-
-    graph.updated_at = Time.now.to_i*1000
-    if @@es.save(graph.id.to_s, 'graph', graph.to_json)
-      return {:status => "updated uuid #{params[:id]}"}
-    else      
-      return
-    end 
+    begin
+      graph = Lipstick::Graph.from_json(graph)    
+      graph.update_node!(params[:nodeId], JSON.parse(json))    
+      store(graph)
+    rescue ArgumentError => e
+      return {
+        :error => e.to_s
+      } 
+    end    
   end
 
   def self.update_graph_node_group params, json
     graph = @@es.get(params[:id], 'graph')
     return unless graph
 
-    graph = Lipstick::Graph.from_json(graph)    
-    data  = JSON.parse(json)
-
-    node_group = graph.get_node_group(params[:nodeGroupId])
-    if node_group # update existing node group
-      node_group.update_with!(data)
-    else # create new node
-      graph.node_groups << Lipstick::Graph::NodeGroup.from_hash(data)
-    end
-
-    graph.updated_at = Time.now.to_i*1000
-    if @@es.save(graph.id.to_s, 'graph', graph.to_json)
-      return {:status => "updated uuid #{params[:id]}"}
-    else      
-      return
-    end 
+    begin
+      graph = Lipstick::Graph.from_json(graph)    
+      graph.update_node_group!(params[:nodeGroupId], JSON.parse(json))    
+      store(graph)
+    rescue ArgumentError => e
+      return {
+        :error => e.to_s
+      }
+    end    
   end
 
   def self.update_graph_edge params, json
@@ -182,26 +262,21 @@ class PlanService
     graph = @@es.get(params[:id], 'graph')
     return unless graph
 
-    graph = Lipstick::Graph.from_json(graph)    
-    data  = JSON.parse(json)
-
-    graph_edge = graph.get_edge(params[:u], params[:v])
-    if graph_edge # update existing node group
-      graph_edge.update_with!(data)
-    else # create new node
-      graph.edges << Lipstick::Graph::Edge.from_hash(data)
-    end
-
-    graph.updated_at = Time.now.to_i*1000
-    if @@es.save(graph.id.to_s, 'graph', graph.to_json)
-      return {:status => "updated uuid #{params[:id]}"}
-    else      
-      return
-    end
+    begin
+      graph = Lipstick::Graph.from_json(graph)    
+      graph.update_edge!(params[:u], params[:v], JSON.parse(json))    
+      store(graph)
+    rescue ArgumentError => e
+      return {
+        :error => e.to_s
+      }
+    end    
   end
   
   #
-  # Updates graph status
+  # Updates graph status.
+  # @fixme Not a complete update of graph. Needs
+  #  a more intelligent merge of updated data.
   #
   def self.update_graph params, json
     graph = @@es.get(params[:id], 'graph')
@@ -211,28 +286,29 @@ class PlanService
     data  = JSON.parse(json)
     graph.status = data['status'] if data['status']
 
-    if (data['node_groups'] && data['node_groups'].is_a?(Array))
-      data['node_groups'].each do |ng|
-        if ng['status']
-          group = graph.get_node_group(ng['id'])
-          group.status = Lipstick::Graph::Status.from_hash(ng['status'])
-        end        
-      end      
-    end
+    begin
+      if (data['node_groups'] && data['node_groups'].is_a?(Array))
+        data['node_groups'].each do |ng|
+          graph.update_node_group!(ng['id'], ng)
+        end      
+      end
 
-    if (data['nodes'] && data['nodes'].is_a?(Array))
-      data['nodes'].each do |n|
-        if n['status']
-          node = graph.get_node(n['id'])
-          node.status = Lipstick::Graph::Status.from_hash(n['status'])
-        end        
-      end      
-    end
-    graph.updated_at = Time.now.to_i*1000
-    if @@es.save(graph.id.to_s, 'graph', graph.to_json)
-      return {:status => "updated uuid #{params[:id]}"}
-    else      
-      return
+      if (data['nodes'] && data['nodes'].is_a?(Array))
+        data['nodes'].each do |n|
+          graph.update_node!(n['id'], n)
+        end      
+      end
+
+      if (data['edges'] && data['edges'].is_a?(Array))
+        data['edges'].each do |e|
+          graph.update_edge!(e['u'], e['v'], e)
+        end      
+      end
+      store(graph)
+    rescue ArgumentError => e
+      return {
+        :error => e.to_s
+      }
     end    
   end
   

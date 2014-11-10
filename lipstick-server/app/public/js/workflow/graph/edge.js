@@ -5,6 +5,7 @@ define(['knockout', 'lib/mustache', '../templates'],
                self.type = ko.observable(data.type);
                self.u = ko.observable(data.u);
                self.v = ko.observable(data.v);
+               self.label = ko.observable(data.label);
                self.properties = ko.observable(data.properties);
                self.title = ko.computed(function() {
                    return "<em>["+self.u()+"] -> ["+self.v()+"]</em>";

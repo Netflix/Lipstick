@@ -65,7 +65,8 @@ define(
                     url:  self.baseUrl + self.uuid
                 }).done(function(json) {
                     self.graph().updateWith(json);
-                    if (self.graph().status().statusText().toLowerCase() === "running") {
+                    var statusText = self.graph().status().statusText();
+                    if (statusText && statusText.toLowerCase() === "running") {
                         _.delay(self.getUpdatedGraph, 5000);
                         self.pulse();
                     } else {

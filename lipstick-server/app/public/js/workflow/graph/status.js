@@ -8,8 +8,11 @@ define(['knockout'], function(ko) {
         self.statusText = ko.observable(data.statusText);
 
         self.timeString = function(ms) {
-            var d = new Date(ms);
-            return d.toLocaleDateString()+' '+d.toLocaleTimeString();
+            if (ms && ms > 0) {
+                var d = new Date(ms);
+                return d.toLocaleDateString()+' '+d.toLocaleTimeString();
+            } 
+            return;
         };
 
         self.startTimeString = ko.computed(function() {
