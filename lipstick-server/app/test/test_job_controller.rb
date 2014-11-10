@@ -66,7 +66,6 @@ class JobControllerTest < Test::Unit::TestCase
       'jobs' => [{
           'id'   => @graph['id'],
           'name' => @graph['name'],
-          'updated_at' => @graph['updated_at'],
           'created_at' => @graph['created_at']
         }],
       'jobsTotal' => 1
@@ -75,7 +74,7 @@ class JobControllerTest < Test::Unit::TestCase
       'id' => @graph['id']
     }
     @expected_put_response = {
-      'status' => 'updated uuid '+@graph['id']
+      'id' => @graph['id']
     }
     @node_update = {
       'id' => 'optimized-a',
@@ -103,7 +102,14 @@ class JobControllerTest < Test::Unit::TestCase
   def test_should_list_jobs
     get '/v1/job'
     assert last_response.ok?
-    assert_equal @expected_list_response, JSON.parse(last_response.body)
+    response     = JSON.parse(last_response.body)
+    first_job    = @expected_list_response['jobs'].first
+    response_job = response['jobs'].first 
+    assert_equal @expected_list_response['jobsTotal'], response['jobsTotal']
+    assert_equal first_job['id'], response_job['id']
+    assert_equal first_job['name'], response_job['name']
+    assert_equal first_job['created_at'], response_job['created_at']
+    assert_operator response_job['updated_at'], :>=, first_job['created_at']
   end
 
   def test_should_post_jobs
@@ -123,13 +129,17 @@ class JobControllerTest < Test::Unit::TestCase
 
     updated = JSON.parse(last_response.body)
 
-    expected_ng   = @status_update['node_groups'].first
-    expected_node = @status_update['nodes'].first
+    expected_ng     = @status_update['node_groups'].first
+    expected_status = expected_ng['status']
+    expected_node   = @status_update['nodes'].first
     
     ng   = updated['node_groups'].find{|x| x['id'] == expected_ng['id']}
     node = updated['nodes'].find{|x| x['id'] == expected_node['id']}
 
-    assert_equal expected_ng['status'], ng['status']
+    assert_equal(
+      [expected_status['startTime'], expected_status['progress']],
+      [ng['status']['startTime'], ng['status']['progress']]
+      )
     assert_equal expected_node['status']['statusText'], node['status']['statusText']
   end
 

@@ -275,6 +275,42 @@ module Lipstick
     def get_edge u, v
       edges.find{|e| (e.u == u && e.v == v)}
     end
+
+    #
+    # Insert or update an edge
+    #
+    def update_edge! u, v, data
+      edge = get_edge(u, v)
+      if edge # update existing node group
+        edge.update_with!(data)
+      else # create new node
+        edges << Edge.from_hash(data)
+      end
+    end
+
+    #
+    # Insert or update a node
+    # 
+    def update_node! id, data
+      node = get_node(id)
+      if node # update existing node
+        node.update_with!(data)
+      else # create new node
+        nodes << Node.from_hash(data)
+      end
+    end
+
+    #
+    # Insert or update a node group
+    #
+    def update_node_group! id, data
+      node_group = get_node_group(id)
+      if node_group # update existing node group
+        node_group.update_with!(data)
+      else # create new node group
+        node_groups << NodeGroup.from_hash(data)
+      end
+    end
     
     #
     # @version 1.0

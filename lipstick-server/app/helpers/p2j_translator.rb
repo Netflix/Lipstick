@@ -1,5 +1,5 @@
 module Lipstick
-  module Adaptor
+  module Adapter
     class P2jPlanPackage
       attr_accessor :optimized
       attr_accessor :unoptimized
@@ -64,11 +64,13 @@ module Lipstick
 
             statusText = nil
             if jobStatus.isComplete
-              if jobStatus.isSuccessful
+              if jobStatus.isSuccessful 
                 statusText = "finished"
               else
                 statusText = "failed"
               end
+            elsif (jobStatus.finishTime > 0)
+              statusText = "finished"
             elsif (mapProgress > 0)
               statusText = "running"
             end
@@ -166,7 +168,6 @@ module Lipstick
         
         properties['userName'] = userName
         properties['script'] = script.to_hash
-
         created_at = Time.now.to_i*1000
         Lipstick::Graph.new(uuid, nodes, edges,
           jobName, properties, node_groups,
@@ -283,9 +284,23 @@ module Lipstick
           @recordsWritten = recordsWritten
           @bytesWritten   = bytesWritten
         end
-        def self.from_hash data     
-          counters       = data['counters'].inject({}){|hsh, cnter| hsh[cnter.first] = P2jCounters.from_hash(cnter.last); hsh}
-          warnings       = data['warnings'].inject({}){|hsh, wn| hsh[wn.first] = P2jWarning.from_hash(wn.last); hsh}
+        def self.from_hash data
+          counters = {}
+          if data['counters']
+            counters = data['counters'].inject({}) do |hsh, cnter|
+              hsh[cnter.first] = P2jCounters.from_hash(cnter.last)
+              hsh
+            end            
+          end
+
+          warnings = {}
+          if data['warnings']
+            warnings = data['warnings'].inject({}) do |hsh, wn|
+              hsh[wn.first] = P2jWarning.from_hash(wn.last)
+              hsh
+            end
+          end
+          
           scope          = data['scope']
           jobId          = data['jobId']
           jobName        = data['jobName']
@@ -300,6 +315,7 @@ module Lipstick
           finishTime     = data['finishTime']
           recordsWritten = data['recordsWritten']
           bytesWritten   = data['bytesWritten']
+          
           self.new(counters, warnings, scope, jobId, jobName, trackingUrl,
             isComplete, isSuccessful, mapProgress, reduceProgress, totalMappers,
             totalReducers, startTime, finishTime, recordsWritten, bytesWritten)
@@ -365,7 +381,7 @@ module Lipstick
         attr_accessor :predecessors, :successors, :schema, :schemaString
 
         attr_accessor :expression, :storageFunction, :storageLocation, :group, :join
-        attr_accessor :schema_equals_pred
+        attr_accessor :schema_equals_pred, :rowLimit
         
         def initialize aliaz, location, mapReduce, operator, uid, preds, succs, schema, schemaStr
           @alias = aliaz
@@ -413,6 +429,7 @@ module Lipstick
           properties['expression']       = expression if expression
           properties['storage_function'] = storageFunction if storageFunction
           properties['storage_location'] = storageLocation if storageLocation
+          properties['limit']            = rowLimit if rowLimit
           properties['group'] = group.to_hash if group
           properties['join']  = join.to_hash if join
           r['properties']     = properties
