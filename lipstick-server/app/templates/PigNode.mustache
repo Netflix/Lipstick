@@ -1,0 +1,51 @@
+<table border="1" cellborder="1" cellspacing="0">
+  <tbody style="font-size: 1.5em; font-family: Times, serif; text-align: center; border: 1px solid black;">
+    <tr style="border: 1px solid black;">
+      <td style="border-collapse: collapse; background-color: {{step_type_color}};" colspan="{{colspan}}">
+        {{operation}}{{additional_info}}
+      </td>
+    </tr>
+    
+    {{#expression}}
+    <tr style="border: 1px solid black;"><td style="border-collapse: collapse;" bgcolor="#BCBCBC" colspan="{{colspan}}">{{expression}}</td></tr>
+    {{/expression}}
+    
+    {{#storage_location}}
+    <tr style="border: 1px solid black;"><td style="border-collapse: collapse;" bgcolor="#BCBCBC" colspan="{{colspan}}">{{storage_location}}</td></tr>
+    {{/storage_location}}
+
+    {{#storage_function}}
+    <tr style="border: 1px solid black;"><td style="border-collapse: collapse;" bgcolor="#BCBCBC" colspan="{{colspan}}">{{storage_function}}</td></tr>
+    {{/storage_function}}
+    
+    <tr style="border: 1px solid black;">
+      <td style="border-collapse: collapse;" bgcolor="#424242" colspan="{{colspan}}">
+        <font color="#FFFFFF">{{alias}}</font>				
+      </td>
+    </tr>
+
+    {{#join}}
+    <tr style="border: 1px solid black;">
+      {{#relations}}
+      <td style="border-collapse: collapse;" bgcolor="#BCBCBC">{{.}}</td>
+      {{/relations}}
+    </tr>
+    
+    {{#by}}
+    <tr style="border: 1px solid black;">
+      {{#fields}}
+      <td style="border-collapse: collapse;" bgcolor="#FFFFFF">{{.}}</td>
+      {{/fields}}
+    </tr>          
+    {{/by}}        
+    {{/join}}
+
+    {{#schema}}
+    {{#columns}}
+    <tr style="border: 1px solid black;" bgcolor="#FFFFFF">
+      <td style="border-collapse: collapse;" bgcolor="#FFFFFF">{{alias}}</td><td bgcolor="#FFFFFF">{{type}}</td>
+    </tr>
+    {{/columns}}
+    {{/schema}}
+  </tbody>
+</table>

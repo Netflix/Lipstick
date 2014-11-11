@@ -1,0 +1,31 @@
+{{#hasSampleData}}
+<h4>Sample Data: </h4>
+{{#sampleOutput}}
+<table class="table table-condensed table-bordered table-hover">
+  {{#hasSchema}}
+  <thead>
+    <tr style="background-color: #fcf8e3;">
+      {{#schema}}
+      <td><strong>{{alias}}</strong></td>
+      {{/schema}}
+    </tr>
+  </thead>
+  {{/hasSchema}}
+  {{^hasSchema}}
+  <thead><tr style="background-color: #fcf8e3;"><td colspan="200">&nbsp;</td></tr></thead>
+  {{/hasSchema}}
+  <tbody>
+    {{#data}}
+    <tr>
+    {{#fields}}
+      <td>{{.}}</td>
+    {{/fields}}
+    </tr>
+    {{/data}}
+  </tbody>
+</table>
+{{/sampleOutput}}
+{{/hasSampleData}}
+{{^hasSampleData}}
+    <table class="table table-condensed table-bordered table-hover"><tr><td>No sample output available at this time.</td></tr></table>
+{{/hasSampleData}}
