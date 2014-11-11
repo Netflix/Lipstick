@@ -65,7 +65,6 @@ atlassian-ide-plugin.xml
 #lipstick
 *.war
 .yardoc
-lipstick-server/app/templates
 lipstick-server/app/public/doc
 lipstick-server/.gem
 lipstick-server/.es-data
