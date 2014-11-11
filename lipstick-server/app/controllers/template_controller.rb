@@ -42,6 +42,30 @@ class TemplateService
     end    
   end
   
+  # 
+  # Post default node and edge templates
+  #
+  def self.load_defaults
+    templates = Dir["app/templates/*.mustache"].inject({}) do |hsh, f|
+      hsh[File.basename(f).gsub(".mustache","")] = f
+      hsh
+    end
+    
+    views = Dir["app/templates/*.js"].each do |view|
+      name     = File.basename(view).gsub(".js","")
+      template = templates[name]
+      
+      view_data = {
+        :name     => name,
+        :view     => File.read(view),
+        :template => File.read(template)
+      }
+      
+      save({:name => name}, view_data.to_json)
+    end
+  end
+
+  load_defaults
 end
 
 # @method get_templates

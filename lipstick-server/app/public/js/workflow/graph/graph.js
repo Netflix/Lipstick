@@ -250,8 +250,7 @@ define(['jquery', 'lib/dagre-d3.min', 'knockout', './status', './node_group', '.
                            } else {
                                edgeData.label = "<div id='"+edgeId+"' class='edge-label'></div>"
                            }
-                           if (edge.label()) {
-                               console.log(edge.label());
+                           if (edge.label()) {  
                                edgeData.label = edgeData.label + "<h6>"+edge.label()+"</h6>"
                            }
                            if (g.hasNode(edge.u()) && g.hasNode(edge.v())) {
