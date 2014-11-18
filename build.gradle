@@ -75,6 +75,7 @@ task('buildRelease', type:Copy, dependsOn: ['clean-expanded', ':lipstick-console
     from ('./lipstick-console/build/libs') {
         include '*.jar'
     }
+    rename('pigstats.war', 'lipstick-server-'+version+'.war')
     into ('build')
 }
 
