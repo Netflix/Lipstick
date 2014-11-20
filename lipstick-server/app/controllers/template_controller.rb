@@ -21,6 +21,10 @@ class TemplateService
     @@es.list_templates
   end
 
+  def self.get params
+    @@es.get(params[:name], 'node_template')
+  end  
+    
   #
   # Save template to Elasticsearch index under 'node_template'
   #
@@ -136,4 +140,20 @@ post '/template/:name' do
     return [500, ret.to_json]
   end
   ret.to_json
+end
+
+# @method get_template
+# @overload GET "/template/:name"
+# Gets an existing template by name
+# @return [String] A json structure with a single template
+# @example
+#   $: curl -XGET "localhost:9292/template/PigEdge"
+#   {'name': 'PigEdge', 'template': '<table>...</table>', 'view': 'function PigEdge(properties) {...}'}
+#
+get '/template/:name' do
+  res = TemplateService.get(params)
+  if !res
+    return [404, ""]
+  end
+  [200, {'Content-Type' => 'application/json'}, res]
 end
