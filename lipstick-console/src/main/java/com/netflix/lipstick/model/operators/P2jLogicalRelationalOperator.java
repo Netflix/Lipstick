@@ -326,10 +326,10 @@ public class P2jLogicalRelationalOperator {
             } catch (ParserException e) {
                 e.printStackTrace();
             }
+            this.schemaString = schemaString.replace(".", "_");
         } else {
             setSchema(null);
-        }
-        this.schemaString = schemaString;
+        }        
     }
 
     public void setSuccessors(List<String> successors) {

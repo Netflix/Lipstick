@@ -37,8 +37,9 @@ import org.apache.hadoop.mapred.JobInProgress;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.TaskReport;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.pig.ExecType;
 import org.apache.pig.LipstickPigServer;
+import org.apache.pig.impl.plan.OperatorPlan;
+import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
@@ -46,8 +47,8 @@ import org.apache.pig.impl.PigContext;
 import org.apache.pig.newplan.Operator;
 import org.apache.pig.tools.pigstats.JobStats;
 import org.apache.pig.tools.pigstats.PigStats;
-import org.apache.pig.tools.pigstats.ScriptState;
-
+import org.apache.pig.tools.pigstats.mapreduce.MRScriptState;
+import org.apache.pig.impl.PigImplConstants;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -87,6 +88,7 @@ public class BasicP2LClient implements P2LClient {
     protected PigContext context;
     protected final Set<String> runningJobIds = Sets.newHashSet();
     protected final Map<String, P2jJobStatus> jobIdToJobStatusMap = Maps.newHashMap();
+    protected final Map<String, Boolean> jobModeMap = Maps.newHashMap();
 
     protected final PigStatusClient psClient;
     protected boolean invalidClient = false;
@@ -133,19 +135,19 @@ public class BasicP2LClient implements P2LClient {
 
     @Override
     @SuppressWarnings("unused")
-    public void createPlan(MROperPlan plan) {
+    public void createPlan(OperatorPlan<?> plan) {
         if (plan != null && unopPlanGenerator != null && opPlanGenerator != null && context != null) {
             Configuration conf = null;
-            for (MapReduceOper job : plan) {
+            for (org.apache.pig.impl.plan.Operator<?> op : plan) {
                 if (conf == null) {
                     conf = new Configuration();
-                    ScriptState.get().addSettingsToConf(job, conf);
+                    MRScriptState.get().addSettingsToConf((MapReduceOper)op, conf);
                     break;
                 }
             }
             try {
                 Map<PhysicalOperator, Operator> p2lMap = Maps.newHashMap();
-                Map<Operator, PhysicalOperator> l2pMap = context.getExecutionEngine().getLogToPhyMap();
+                Map<Operator, PhysicalOperator> l2pMap = ((HExecutionEngine)context.getExecutionEngine()).getLogToPhyMap();
                 for (Entry<Operator, PhysicalOperator> i : l2pMap.entrySet()) {
                     p2lMap.put(i.getValue(), i.getKey());
                 }
@@ -160,9 +162,9 @@ public class BasicP2LClient implements P2LClient {
                     script = StringUtils.join(ps.getScriptCache(), '\n');
                 }
 
-                MRPlanCalculator opPlan = new MRPlanCalculator(opPlanGenerator.getP2jPlan(), plan, p2lMap, opPlanGenerator.getReverseMap());
-                MRPlanCalculator unopPlan = new MRPlanCalculator(unopPlanGenerator.getP2jPlan(), plan, p2lMap, unopPlanGenerator.getReverseMap());
-
+                MRPlanCalculator opPlan = new MRPlanCalculator(opPlanGenerator.getP2jPlan(), (MROperPlan)plan, p2lMap, opPlanGenerator.getReverseMap());
+                MRPlanCalculator unopPlan = new MRPlanCalculator(unopPlanGenerator.getP2jPlan(), (MROperPlan)plan, p2lMap, unopPlanGenerator.getReverseMap());
+                
                 P2jPlanPackage plans = new P2jPlanPackage(opPlan.getP2jPlan(), unopPlan.getP2jPlan(), script, planId);
 
                 Properties props = context.getProperties();
@@ -229,7 +231,7 @@ public class BasicP2LClient implements P2LClient {
         // name is found. If so, look up it's scope and bind the jobId to
         // the DAGNode with the same scope.
         for (JobStats jobStats : jobGraph) {
-            if (jobId.equals(jobStats.getJobId())) {
+            if (jobStats != null && jobId.equals(jobStats.getJobId())) {
                 LOG.info("jobStartedNotification - scope " + jobStats.getName() + " is jobId " + jobId);
                 P2jJobStatus jobStatus = new P2jJobStatus();
                 jobStatus.setJobId(jobId);
@@ -237,6 +239,19 @@ public class BasicP2LClient implements P2LClient {
                 jobStatus.setScope(jobStats.getName());
                 jobIdToJobStatusMap.put(jobId, jobStatus);
                 runningJobIds.add(jobId);
+
+                //
+                // Hack to get the configuration associated with the job to know
+                // whether it's been converted to local mode or not
+                //
+                try {
+                    java.lang.reflect.Field f = jobStats.getClass().getSuperclass().getDeclaredField("conf");
+                    f.setAccessible(true);
+                    Configuration c = (Configuration)f.get(jobStats);
+                    jobModeMap.put(jobId, c.getBoolean(PigImplConstants.CONVERTED_TO_LOCAL, false));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
         P2jPlanStatus planStatus = new P2jPlanStatus();
@@ -257,9 +272,10 @@ public class BasicP2LClient implements P2LClient {
         }
 
         // Update the status of this job
+        JobClient jobClient = PigStats.get().getJobClient();
         P2jPlanStatus planStatus = new P2jPlanStatus();
         jobIdToJobStatusMap.get(jobId).setFinishTime(System.currentTimeMillis());
-        if (context.getExecType() == ExecType.LOCAL) {
+        if (isLocalMode(jobId)) {
             jobIdToJobStatusMap.get(jobId).setMapProgress(1);
             jobIdToJobStatusMap.get(jobId).setReduceProgress(1);
         }
@@ -271,7 +287,6 @@ public class BasicP2LClient implements P2LClient {
         /* Set the completed job warnings after calling updatePlanStatusForCompletedJobId() otherwise
            we end up overwriting the warning field with the running job warnings (which are included
            with the completed job warnings). */
-        JobClient jobClient = PigStats.get().getJobClient();
         jobIdToJobStatusMap.get(jobId).setWarnings(getCompletedJobWarnings(jobClient, jobStats));
 
         
@@ -415,7 +430,7 @@ public class BasicP2LClient implements P2LClient {
             JobID jobID = rj.getID();
             Counters counters = rj.getCounters();
             js.setCounters(buildCountersMap(counters));
-            js.setWarnings(getRunningJobWarnings(jobClient, jobID));
+            js.setWarnings(getRunningJobWarnings(jobClient, jobID.toString()));
 
             js.setJobName(rj.getJobName());
             js.setTrackingUrl(rj.getTrackingURL());
@@ -446,7 +461,7 @@ public class BasicP2LClient implements P2LClient {
     }
 
     public Map<String, P2jWarning> getCompletedJobWarnings(JobClient jobClient, JobStats jobStats) {
-        if (context.getExecType() == ExecType.LOCAL) {
+        if (isLocalMode(jobStats.getJobId())) {
             Map<String, P2jWarning> warnings = Maps.newHashMap();
             return warnings;
         } else {
@@ -455,13 +470,19 @@ public class BasicP2LClient implements P2LClient {
         }
     }
 
-    public Map<String, P2jWarning> getRunningJobWarnings(JobClient jobClient, JobID jobId) {
-        if (context.getExecType() == ExecType.LOCAL) {
+    public Map<String, P2jWarning> getRunningJobWarnings(JobClient jobClient, String jobId) {
+        if (isLocalMode(jobId)) {
             Map<String, P2jWarning> warnings = Maps.newHashMap();
             return warnings;
         } else {
             JobWarnings jw = new JobWarnings();
-            return jw.findRunningJobWarnings(jobClient, jobId.toString());
+            return jw.findRunningJobWarnings(jobClient, jobId);
         }
+    }
+
+    public boolean isLocalMode(String jobId) {
+        return (context.getExecType() == org.apache.pig.ExecType.LOCAL ||
+                jobModeMap.get(jobId)
+                );
     }
 }

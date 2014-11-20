@@ -84,7 +84,8 @@ public class MRPlanCalculatorTest {
     }
 
     private Map<PhysicalOperator, Operator> getP2lMap(LipstickPigServer lps) throws Exception {
-        HExecutionEngine he = new HExecutionEngine(lps.getPigContext());
+        
+        HExecutionEngine he = (HExecutionEngine)lps.getPigContext().getExecutionEngine();
         he.compile(getLogicalPlan(lps), null);
 
         Map<Operator, PhysicalOperator> l2pMap = he.getLogToPhyMap();
@@ -97,7 +98,7 @@ public class MRPlanCalculatorTest {
     }
 
     private MROperPlan getMROperPlan(LipstickPigServer lps) throws Exception {
-        HExecutionEngine he = new HExecutionEngine(lps.getPigContext());
+        HExecutionEngine he = (HExecutionEngine)lps.getPigContext().getExecutionEngine();
         PhysicalPlan pp = he.compile(getLogicalPlan(lps), null);
 
         MRCompiler mrc = new MRCompiler(pp, lps.getPigContext());
@@ -121,7 +122,7 @@ public class MRPlanCalculatorTest {
         Method compilePlanMethod = graph.getClass().getDeclaredMethod("compile");
         compilePlanMethod.setAccessible(true);
         compilePlanMethod.invoke(graph);
-        
+                
         Method getPlanMethod = graph.getClass().getMethod("getPlan", String.class);
 
         return (LogicalPlan) getPlanMethod.invoke(graph, new Object[] { null });

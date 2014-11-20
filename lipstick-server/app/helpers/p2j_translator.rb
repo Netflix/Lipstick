@@ -128,11 +128,13 @@ module Lipstick
         #
         if u.properties['storage_location']
           input_counts = input_count_map[startScope.split("-",2).last]
-          if input_counts.has_key?("0")
-            edge['label'] = input_counts["0"]
-          else
-            edge['label'] = input_counts[u.properties['storage_location']]
-          end
+          if input_counts
+            if input_counts.has_key?("0")
+              edge['label'] = input_counts["0"]
+            else
+              edge['label'] = input_counts[u.properties['storage_location']]
+            end
+          end          
         end
 
         #
@@ -140,11 +142,13 @@ module Lipstick
         #
         if v.properties['storage_location']
           output_counts = output_count_map[endScope.split("-",2).last]
-          if output_counts.has_key?("0")
-            edge['label'] = output_counts["0"]
-          else
-            edge['label'] = output_counts[v.properties['storage_location']]
-          end
+          if output_counts
+            if output_counts.has_key?("0")
+              edge['label'] = output_counts["0"]
+            else
+              edge['label'] = output_counts[v.properties['storage_location']]
+            end
+          end          
         end
         edge['properties'] = properties
         Lipstick::Graph::Edge.from_hash(edge)

@@ -29,8 +29,7 @@ public class LipstickGrunt extends Grunt {
         super(in, pigContext);
         this.pig = new LipstickPigServer(pigContext);
         if (this.in != null) {
-            parser = new GruntParser(this.in);
-            parser.setParams(pig);
+            parser = new GruntParser(this.in, pig);
         }
     }
 }
