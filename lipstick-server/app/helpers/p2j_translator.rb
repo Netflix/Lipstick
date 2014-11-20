@@ -53,7 +53,7 @@ module Lipstick
         Lipstick::Graph::Node.from_hash({'id' => id, 'child' => child})
       end
 
-      def translate_node_group id, name, ng
+      def translate_node_group id, name, ng, input_count_map, output_count_map
         ng['id'] = id
         original_scope = name.split('-',2).last      
         if status.jobStatusMap
@@ -91,29 +91,113 @@ module Lipstick
               'counters'    => jobStatus.counters.inject({}){|hsh, cnt| hsh[cnt.first] = cnt.last.to_hash; hsh},
               'warnings'    => jobStatus.warnings.inject({}){|hsh, wn| hsh[wn.first] = wn.last.to_hash; hsh}
             }
+
+            input_count_map[original_scope] = input_counts(jobStatus)
+            output_count_map[original_scope] = output_counts(jobStatus)
           end      
         end
         Lipstick::Graph::NodeGroup.from_hash(ng)
       end
 
-      def translate_edge u, v
+      def translate_edge u, v, input_count_map, output_count_map
         edge = {'u' => u.id, 'v' => v.id}
         startScope = u.properties['scope']
         endScope   = v.properties['scope']
-        
+        properties = {}
+
+        #
+        # Boundary edge
+        #
         if startScope != endScope
+          
           actualScope = startScope.split("-",2).last
           sampleOutput = sampleOutputMap[actualScope]
           if sampleOutput
             schema = u.properties['schema']
-            properties = {
-              'schema' => schema,
-              'sampleOutput' => sampleOutput.map{|x| x.sampleOutput} 
-            }
-            edge['properties'] = properties
-          end          
+            properties['schema'] = schema
+            properties['sampleOutput'] = sampleOutput.map{|x| x.sampleOutput}            
+          end
+
+          if output_count_map.has_key?(actualScope)
+            edge['label'] = output_count_map[actualScope]["0"]
+          end
         end
+
+        #
+        # Source of data; input_counts
+        #
+        if u.properties['storage_location']
+          input_counts = input_count_map[startScope.split("-",2).last]
+          if input_counts.has_key?("0")
+            edge['label'] = input_counts["0"]
+          else
+            edge['label'] = input_counts[u.properties['storage_location']]
+          end
+        end
+
+        #
+        # Sink of data; output_counts
+        #
+        if v.properties['storage_location']
+          output_counts = output_count_map[endScope.split("-",2).last]
+          if output_counts.has_key?("0")
+            edge['label'] = output_counts["0"]
+          else
+            edge['label'] = output_counts[v.properties['storage_location']]
+          end
+        end
+        edge['properties'] = properties
         Lipstick::Graph::Edge.from_hash(edge)
+      end
+
+      #
+      # {:scope_id => {:name => count}}
+      #
+      def input_counts jobstatus
+        counters = jobstatus.counters
+        result = {}
+        if counters['Map-Reduce Framework']
+          if counters['MultiInputCounters']
+            counts = counters['MultiInputCounters'].counters
+            counts.each do |name, value|
+              location = name.split('_')[2..-1].join('_')
+              result[location] = commas(value)
+            end
+          else
+            # Hack when there's only one input to a job
+            result["0"] = commas(counters['Map-Reduce Framework'].counters['Map input records'])
+          end         
+        end
+        result
+      end
+
+      def output_counts jobstatus
+        counters = jobstatus.counters
+        result = {}
+        if counters['Map-Reduce Framework']
+          if counters['MultiStoreCounters']
+            counts = counters['MultiStoreCounters'].counters
+            counts.each do |name, value|
+              location = name.split('_')[2..-1].join('_')
+              result[location] = commas(value)
+            end
+          else
+            count_out = nil
+            if counters['Map-Reduce Framework'].counters.has_key?('Reduce output records')
+              count_out = counters['Map-Reduce Framework'].counters['Reduce output records']
+            end
+            if jobstatus.totalReducers == 0
+              count_out = counters['Map-Reduce Framework'].counters['Map output records']
+            end
+            # Hack when there's only one input to a job
+            result["0"] = commas(count_out)
+          end                    
+        end
+        result
+      end
+
+      def commas number
+        number.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
       end
       
       def to_graph
@@ -136,11 +220,13 @@ module Lipstick
         nodes += nodeMap.values
         
         idx = 0
+        input_count_map = {}
+        output_count_map = {}
         optimized_children = []
         unoptimized_children = []
         nodeGroupMap.each do |ng_name, ng|
           nodes       << node_for_node_group(ng_name, idx.to_s)            
-          node_groups << translate_node_group(idx.to_s, ng_name, ng)
+          node_groups << translate_node_group(idx.to_s, ng_name, ng, input_count_map, output_count_map)
           if ng_name.start_with?('optimized')
             optimized_children << ng_name
           else
@@ -162,7 +248,7 @@ module Lipstick
         nodeMap.values.each do |node|
           succs = node.properties['successors']
           succs.each do |succ|
-            edges << translate_edge(node, nodeMap[succ]) 
+            edges << translate_edge(node, nodeMap[succ], input_count_map, output_count_map) 
           end
         end
         
