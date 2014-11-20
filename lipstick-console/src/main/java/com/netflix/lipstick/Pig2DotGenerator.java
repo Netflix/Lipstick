@@ -129,14 +129,14 @@ public class Pig2DotGenerator {
      */
     protected Boolean schemaEqualsPredecessor(P2jLogicalRelationalOperator oper) {
         if (oper.getSchemaString() != null) {
-            String operString = oper.getSchemaString().substring(1, oper.getSchemaString().length() - 1);
+            String operString = oper.getSchemaString();
             for (String predName : oper.getPredecessors()) {
                 P2jLogicalRelationalOperator pred = p2jMap.get(predName);
                 try {
                     if (pred.getSchemaString() != null) {
-                        String predString = pred.getSchemaString().substring(1, pred.getSchemaString().length() - 1);
-                        if (!Schema.equals(Utils.getSchemaFromString(predString),
-                                           Utils.getSchemaFromString(operString),
+                        String predString = pred.getSchemaString();
+                        if (!Schema.equals(Utils.getSchemaFromBagSchemaString(predString),
+                                           Utils.getSchemaFromBagSchemaString(operString),
                                            true,
                                            false)) {
                             return false;

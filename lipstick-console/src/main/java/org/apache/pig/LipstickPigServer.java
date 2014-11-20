@@ -16,12 +16,12 @@
 package org.apache.pig;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.pig.backend.executionengine.ExecException;
+import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
@@ -35,6 +35,9 @@ import org.apache.pig.tools.pigstats.ScriptState;
 
 import com.netflix.lipstick.P2jPlanGenerator;
 import com.netflix.lipstick.listeners.LipstickPPNL;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 /**
  * PigServer with extensions to support additional notifications to LipstickPPNL.
@@ -52,7 +55,8 @@ public class LipstickPigServer extends PigServer {
     protected LipstickPPNL ppnl = null;
     protected P2jPlanGenerator optimizedPlanGenerator;
     protected P2jPlanGenerator unoptimizedPlanGenerator;
-
+    private static final Log LOG = LogFactory.getLog(LipstickPigServer.class);
+    
     /**
      * Constructs a LipstickPigServer with the given execType and properties.
      * Initializes any LipstickPPNLs that the ScriptState is aware of.
@@ -130,53 +134,34 @@ public class LipstickPigServer extends PigServer {
      * for the LipstickPPNL(s).
      */
     @Override
-    protected PigStats launchPlan(PhysicalPlan pp, String jobName) throws ExecException, FrontendException {
+    protected PigStats launchPlan(LogicalPlan lp, String jobName) throws ExecException, FrontendException {
         if (ppnl != null) {
             try {
-                optimizedPlanGenerator = new P2jPlanGenerator(getCurrDAG().getPlan(null));
+                // Get optimized plan by compiling it with the appropriate execution engine
+                LOG.info("Compiling and optimizing logical plan...");
+                ((HExecutionEngine)getPigContext().getExecutionEngine()).compile(lp, getPigContext().getProperties());
+                optimizedPlanGenerator = new P2jPlanGenerator(lp);
+                LOG.info("Finished compiling and optimizing logical plan");
+                
                 ppnl.setPlanGenerators(unoptimizedPlanGenerator, optimizedPlanGenerator);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        return super.launchPlan(pp, jobName);
-    }
-
-    /**
-     * Uses reflection to get the current Graph.
-     * @return
-     */
-    protected Graph getCurrDAG() {
-        try {
-            Field f = this.getClass().getSuperclass().getDeclaredField("currDAG");
-            f.setAccessible(true);
-            return (Graph) f.get(this);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Returns the LogicalPlan contained in the current DAG with the given alias.
-     *
-     * @param alias
-     * @return
-     * @throws IOException
-     */
-    public LogicalPlan getLP(String alias) throws IOException {
-        return getCurrDAG().getPlan(alias);
+        return super.launchPlan(lp, jobName);
     }
 
     public List<String> getScriptCache() {
-        return getCurrDAG().getScriptCache();
+        return getCurrentDAG().getScriptCache();
     }
 
     /**
-     * Registers the given query and constructs an unoptimized plan generator.
+     * Takes advantage of the fact that parseAndBuild gets called by 
+     * executeBatch <b>before</b> the logical plan is optimized
      */
     @Override
-    public void registerQuery(String query, int startLine) throws IOException {
-        super.registerQuery(query, startLine);
-        unoptimizedPlanGenerator = new P2jPlanGenerator(getCurrDAG().getPlan(null));
+    public void parseAndBuild() throws IOException {
+        super.parseAndBuild();
+        unoptimizedPlanGenerator = new P2jPlanGenerator(getCurrentDAG().getLogicalPlan());
     }
 }
