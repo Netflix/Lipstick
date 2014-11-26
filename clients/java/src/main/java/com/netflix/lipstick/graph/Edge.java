@@ -46,6 +46,15 @@ public class Edge {
         return this;
     }
     
+    public Object property(String key) {
+        return this.properties.get(key);
+    }
+    
+    public Edge property(String key, Object value) {
+        this.properties.put(key, value);
+        return this;
+    }
+    
     public Edge properties(Map<String, Object> properties) {
         this.properties = properties;
         return this;

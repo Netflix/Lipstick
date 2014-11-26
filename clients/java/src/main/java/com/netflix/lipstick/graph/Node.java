@@ -50,6 +50,15 @@ public class Node {
         return this;
     }
     
+    public Object property(String key) {
+        return this.properties.get(key);
+    }
+    
+    public Node property(String key, Object value) {
+        this.properties.put(key, value);
+        return this;
+    }
+    
     public Node properties(Map<String, Object> properties) {
         this.properties = properties;
         return this;

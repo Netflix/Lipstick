@@ -11,6 +11,13 @@ public class Status {
     public Long endTime;
     public Long heartbeatTime;
     public String statusText;
+
+    public Status() {
+        Long now = System.currentTimeMillis();
+        progress = 0;
+        startTime = now;
+        heartbeatTime = now;        
+    }
     
     public Status progress(Integer progress) {
         this.progress = progress;

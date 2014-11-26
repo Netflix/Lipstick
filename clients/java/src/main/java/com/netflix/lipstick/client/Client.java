@@ -38,9 +38,13 @@ public class Client extends BaseClient {
         return makeRequest(path, graph, RequestVerb.PUT);
     }
     
-    public String getTemplate(String name) {
+    public Template getTemplate(String name) {
         String path = String.format("%s/%s", TEMPLATE_PATH, name);
-        return makeRequest(path, null, RequestVerb.GET);
+        String response = makeRequest(path, null, RequestVerb.GET);
+        if (response != null) {
+            return Template.fromJson(response);
+        }
+        return null;
     }
     
     public String saveTemplate(Template template) {

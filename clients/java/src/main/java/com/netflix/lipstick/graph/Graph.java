@@ -11,8 +11,8 @@ import org.apache.commons.logging.LogFactory;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.Maps;
 
 @JsonInclude(value=JsonInclude.Include.NON_NULL)
@@ -36,6 +36,7 @@ public class Graph {
     private Map<String, NodeGroup> nodeGroupMap;
     
     public Graph() {
+        this.status = new Status();
         this.nodeMap = Maps.newHashMap();
         this.edgeMap = Maps.newHashMap();
         this.nodeGroupMap = Maps.newHashMap();
@@ -49,6 +50,7 @@ public class Graph {
     public Graph(String id, String name) {
         this.id = id;
         this.name = name;
+        this.status = new Status();
         this.nodeMap = Maps.newHashMap();
         this.edgeMap = Maps.newHashMap();
         this.nodeGroupMap = Maps.newHashMap();
@@ -67,6 +69,15 @@ public class Graph {
     
     public Graph status(Status status) {
         this.status = status;
+        return this;
+    }
+    
+    public Object property(String key) {
+        return this.properties.get(key);
+    }
+    
+    public Graph property(String key, Object value) {
+        this.properties.put(key, value);
         return this;
     }
     
@@ -135,10 +146,12 @@ public class Graph {
         return this;
     }
     
+    @JsonProperty("node_groups")
     public void setNodeGroups(List<NodeGroup> nodeGroups) {
         nodeGroups(nodeGroups);
     }
     
+    @JsonProperty("node_groups")
     public Collection<NodeGroup> getNodeGroups() {
         return this.nodeGroupMap.values();
     }
