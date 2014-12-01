@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.google.common.collect.Maps;
 
-@JsonInclude(value=JsonInclude.Include.NON_NULL)
+@JsonInclude(value=JsonInclude.Include.NON_EMPTY)
 @JsonIgnoreProperties(ignoreUnknown=true)
 public class Node {
     public String id;
@@ -62,5 +62,20 @@ public class Node {
     public Node properties(Map<String, Object> properties) {
         this.properties = properties;
         return this;
+    }
+    
+    public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof Node)) return false;
+        
+        Node n = (Node)other;
+        
+        return
+                this.id == null ? n.id == null : this.id.equals(n.id) &&
+                this.url == null ? n.url == null : this.url.equals(n.url) &&
+                this.type == null ? n.type == null : this.type.equals(n.type) &&
+                this.child == null ? n.child == null : this.child.equals(n.child) &&
+                this.status == null ? n.status == null : this.status.equals(n.status) &&
+                this.properties.equals(n.properties);
     }
 }

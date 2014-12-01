@@ -7,7 +7,7 @@ import jersey.repackaged.com.google.common.collect.Maps;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-@JsonInclude(value=JsonInclude.Include.NON_NULL)
+@JsonInclude(value=JsonInclude.Include.NON_EMPTY)
 @JsonIgnoreProperties(ignoreUnknown=true)
 public class Edge {
     public String u;
@@ -58,5 +58,19 @@ public class Edge {
     public Edge properties(Map<String, Object> properties) {
         this.properties = properties;
         return this;
+    }
+    
+    public boolean equals(Object other) {        
+        if (this == other) return true;
+        if (!(other instanceof Edge)) return false;
+        
+        Edge e = (Edge)other;
+        
+        return
+                this.u == null ? e.u == null : this.u.equals(e.u) &&
+                this.v == null ? e.v == null : this.v.equals(e.v) &&
+                this.type == null ? e.type == null : this.type.equals(e.type) &&
+                this.label == null ? e.label == null : this.label.equals(e.label) &&
+                this.properties.equals(e.properties);
     }
 }

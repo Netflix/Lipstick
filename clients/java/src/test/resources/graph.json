@@ -1,0 +1,88 @@
+{
+  "id": "0",
+  "name": "test",
+  "properties": {
+    "userName":"testuser"    
+  },
+  "status": {
+    "progress":20,
+    "startTime":1412354951,
+    "heartbeatTime": 1412354796,
+    "statusText":"running"
+  },
+  "nodes": [
+    {"id": "a", "properties": {"alias": "one", "operation":"start"}},
+    {"id": "b", "properties": {"alias": "two", "operation":"hop"}},    
+    {"id": "c", "properties": {"alias": "three", "operation":"skip"}},
+    {"id": "d", "properties": {"alias": "four", "operation":"join"}},    
+    {"id": "e", "properties": {"alias": "five", "operation":"read"}},
+    {"id": "f", "properties": {"alias": "six", "operation":"fly"}},
+    {"id": "g", "properties": {"alias": "seven", "operation":"dance"}},    
+    {"id": "h", "properties": {"alias": "eight", "operation":"rollerskate"}},
+    {"id": "i", "properties": {"alias": "nine", "operation":"roll"}},
+    {"id": "j", "properties": {"alias": "ten", "operation":"dive"}},
+    {"id": "k",
+     "type":"Plain",
+     "url":"http://www.netflix.com",
+     "properties": {"alias": "eleven", "operation":"tuck", "step_type" : "mapper"}
+    },    
+    {"id": "l", "properties": {"alias": "twelve", "operation":"pushup"}},
+    {"id": "m", "properties": {"alias": "thirteen", "operation":"twist"}},
+    {"id": "n", "properties": {"alias": "fourteen", "operation":"kick"}},
+    {"id": "o", "properties": {"alias": "fifteen", "operation":"shout"}},
+    {"id": "p", "properties": {"alias": "sixteen", "operation":"finish"}},
+    {"id": "job1", "child": "1"},
+    {"id": "job2", "child": "2"},
+    {"id": "job3", "child": "3"},
+    {"id": "job4", "child": "4"},
+    {"id": "job5", "child": "5"}    
+  ],
+  "edges": [
+    {"u": "a", "v": "d"},
+    {"u": "b", "v": "d"},
+    {"u": "c", "v": "e",
+     "label":"testlabel",
+     "type": "Something",
+     "properties": {
+       "edgeWeight": 2
+     }
+    },
+    {"u": "d", "v": "f"},
+    {"u": "f", "v": "g"},
+    {"u": "g", "v": "h"},
+    {"u": "h", "v": "i"},
+    {"u": "i", "v": "j"},
+    {"u": "j", "v": "k"},
+    {"u": "k", "v": "l"},
+    {"u": "l", "v": "m"},
+    {"u": "m", "v": "n"},
+    {"u": "n", "v": "o"},
+    {"u": "o", "v": "p"}
+  ],
+  "node_groups": [
+    {"id": "1", "children": ["a","b"], "status":{
+       "progress":10,
+       "startTime":1412354951,
+       "heartbeatTime": 1412354796,
+       "statusText":"failed"
+     }
+    },
+    {"id": "2", "children": ["c","d"]},
+    {"id": "3", "children": ["e","f","g"]},
+    {"id": "4", "children": ["h","i","j"]},
+    {"id": "5", "children": ["k","l","m","n","o","p"],
+     "url": "http://localhost:8080",
+     "properties": {
+       "counters":{
+         "num_records":2
+       }
+     },
+     "status":{
+       "progress":30,
+       "startTime":1412354951,
+       "heartbeatTime": 1412354796,
+       "statusText":"running"
+     }
+    }
+  ]  
+}

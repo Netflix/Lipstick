@@ -16,10 +16,16 @@ dependencies {
   compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
   compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
   compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
+  testCompile 'org.testng:testng:6.1.1'
+  testCompile 'org.skyscreamer:jsonassert:1.2.3'
 }
 
 task fullJar(type: Jar) {
   baseName = project.name + '-withDependencies'
   from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }}
   with jar
+}
+
+test {
+  useTestNG()
 }

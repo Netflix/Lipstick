@@ -1,6 +1,7 @@
 package com.netflix.lipstick.graph;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +16,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 
-@JsonInclude(value=JsonInclude.Include.NON_NULL)
+@JsonInclude(value=JsonInclude.Include.NON_EMPTY)
 @JsonIgnoreProperties(ignoreUnknown=true)
 public class Graph {
     
@@ -41,11 +42,7 @@ public class Graph {
         this.edgeMap = Maps.newHashMap();
         this.nodeGroupMap = Maps.newHashMap();
         this.properties = Maps.newHashMap();
-    }
-    
-    public Graph(String id) {
-        this(id, "workflow-"+id);
-    }
+    }        
     
     public Graph(String id, String name) {
         this.id = id;
@@ -55,6 +52,22 @@ public class Graph {
         this.edgeMap = Maps.newHashMap();
         this.nodeGroupMap = Maps.newHashMap();
         this.properties = Maps.newHashMap();
+    }
+    
+    public int numNodes() {
+        return this.nodeMap.size();
+    }
+    
+    public int numNodeGroups() {
+        return this.nodeGroupMap.size();        
+    }
+    
+    public int numEdges() {
+        return this.edgeMap.size();
+    }
+    
+    public Graph(String id) {
+        this(id, "workflow-"+id);
     }
     
     public Graph id(String id) {
@@ -161,6 +174,32 @@ public class Graph {
             this.nodeGroupMap.put(nodeGroup.id, nodeGroup);
         }
         return this;
+    }
+    
+    public boolean equals(Object other) {        
+        if (this == other) return true;
+        if (!(other instanceof Graph)) return false;
+        
+        Graph g = (Graph)other;
+        
+        return
+                this.id == null ? g.id == null : this.id.equals(g.id) &&
+                this.name == null ? g.name == null : this.name.equals(g.name) &&
+                this.status == null ? g.status == null : this.status.equals(g.status) &&
+                this.getNodes().equals(g.getNodes()) &&
+                this.getEdges().equals(g.getEdges()) &&
+                this.getNodeGroups().equals(g.getNodeGroups()) &&
+                this.properties.equals(g.properties);
+    }
+    
+    public static Graph fromJson(InputStream is) {
+        try {
+            Graph g = (new ObjectMapper()).readValue(is, Graph.class);
+            return g;
+        } catch (IOException e) {
+            LOG.error("Error deserializing Graph", e);
+        }
+        return null;
     }
     
     public static Graph fromJson(String json) {

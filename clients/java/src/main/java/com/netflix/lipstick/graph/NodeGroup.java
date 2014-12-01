@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-@JsonInclude(value=JsonInclude.Include.NON_NULL)
+@JsonInclude(value=JsonInclude.Include.NON_EMPTY)
 @JsonIgnoreProperties(ignoreUnknown=true)
 public class NodeGroup {
     public String id;
@@ -71,5 +71,19 @@ public class NodeGroup {
     public NodeGroup properties(Map<String, Object> properties) {
         this.properties = properties;
         return this;
+    }
+    
+    public boolean equals(Object other) {        
+        if (this == other) return true;
+        if (!(other instanceof NodeGroup)) return false;
+        
+        NodeGroup ng = (NodeGroup)other;
+        
+        return
+                this.id == null ? ng.id == null : this.id.equals(ng.id) &&
+                this.url == null ? ng.url == null : this.url.equals(ng.url) &&
+                this.status == null ? ng.status == null : this.status.equals(ng.status) &&
+                this.children.equals(ng.children) &&
+                this.properties.equals(ng.properties);
     }
 }
