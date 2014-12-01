@@ -1,0 +1,31 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+sourceCompatibility = 1.6
+version = '0.1'
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  compile 'com.google.guava:guava:12.0'
+  compile 'commons-logging:commons-logging:1.1.1'
+  compile 'org.glassfish.jersey.core:jersey-common:2.13'
+  compile 'org.glassfish.jersey.core:jersey-client:2.13'
+  compile 'com.fasterxml.jackson.core:jackson-core:2.1.4'
+  compile 'com.fasterxml.jackson.core:jackson-annotations:2.1.4'
+  compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
+  testCompile 'org.testng:testng:6.1.1'
+  testCompile 'org.skyscreamer:jsonassert:1.2.3'
+}
+
+task fullJar(type: Jar) {
+  baseName = project.name + '-withDependencies'
+  from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }}
+  with jar
+}
+
+test {
+  useTestNG()
+}
