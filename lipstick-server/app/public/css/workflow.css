@@ -41,7 +41,8 @@ table th, table td {
 }
 
 table.treetable {
-  border: none;        
+  border: none;
+  font-size: 1.2em;
 }
 
 table.treetable tr :first-child {
@@ -53,7 +54,7 @@ table tr.leaf :first-child {
 }
 
 .cluster rect {
-  stroke-width: 1.5px;
+  stroke-width: 2.5px;
   stroke: black;
   fill: #e9e9e9;
 }
@@ -72,7 +73,7 @@ table tr.leaf :first-child {
 .label {
   font-size: 100%;
   font-weight: normal;
-  line-height: 100%;
+  line-height: 130%;
   color: #333;
 }
 
