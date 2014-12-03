@@ -46,6 +46,9 @@
                 max: options.pageSize,
                 search: options.search,
             };
+            if (options.filter) {
+                data['status'] = options.filter.value;
+            }
             $.ajax({
                 type: 'GET',
                 data: data,
