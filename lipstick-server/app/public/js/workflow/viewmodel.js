@@ -2,12 +2,14 @@ define(
     ['jquery', 'transit', 'lodash.min', 'knockout', 'd3', 'lib/dagre-d3.min',
      'bootstrap', 'treetable', 'workflow/graph/graph'],
     function($, transit, _, ko, d3, dagreD3, bootstrap, treetable, WorkflowGraph) {              
-
+        
         function WorkflowViewModel() {
             var self = this;
             
             self.baseUrl = './v1/job/';
             self.graphSel = '#workflow-graph';
+            self.jobInfoSel = '.navbar .job-info';
+            
             self.uuid = undefined;
             self.active = d3.select(null);
             self.svg = d3.select(null);
@@ -44,6 +46,7 @@ define(
                     url:  self.baseUrl + uuid
                 }).done(function(json) {
                     self.graph(new WorkflowGraph.Graph(json));
+                    $(self.jobInfoSel).html(json.name + ' (' + json.user + ')');
                     if (self.graph().depth > 2) {
                         var sg = self.graph().subgraphsAt(1)[0];
                         self.renderSvg(sg.name());
