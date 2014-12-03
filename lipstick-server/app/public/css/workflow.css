@@ -23,6 +23,12 @@ body {
   margin-top: 5px;
 }
 
+.navbar .job-info {
+  padding-top: 10px;
+  font-size: 15px;
+  color: #FFFFFF;
+}
+
 .navbar .progress-bar > div {
   margin-top: -1.5px;
 }

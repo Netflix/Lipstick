@@ -24,7 +24,8 @@ public class GraphTest {
         counters.put("num_records", 2);
         
         Graph graph = new Graph("0", "test")
-            .property("userName", "testuser")
+            .user("testuser")
+            .property("something", "else")
             .status(new Status(20, 1412354951l, 1412354796l, "running"))
             .node(new Node("a").property("alias","one").property("operation","start"))
             .node(new Node("b").property("alias", "two").property("operation","hop"))
@@ -106,10 +107,11 @@ public class GraphTest {
             .heartbeatTime(1412354796l).statusText("running");
         
         Map<String, Object> expectedGraphProperties = Maps.newHashMap();
-        expectedGraphProperties.put("userName", "testuser");
+        expectedGraphProperties.put("something", "else");
         
         Assert.assertEquals(graph.id, "0");
         Assert.assertEquals(graph.name, "test");
+        Assert.assertEquals(graph.user, "testuser");
         Assert.assertEquals(graph.status, expectedGraphStatus);
         Assert.assertEquals(graph.properties, expectedGraphProperties);
         

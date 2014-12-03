@@ -1,8 +1,9 @@
 {
   "id": "0",
   "name": "test",
+  "user": "testuser",
   "properties": {
-    "userName":"testuser"    
+    "something":"else"
   },
   "status": {
     "progress":20,

@@ -14,13 +14,25 @@
  * limitations under the License.
  */
 ;define(['jquery', 'underscore'], function($, _) {
+    var progressTmpl = '<div class="progress" style="width: 100%;">'+
+        '<div role="progressbar" class="job-progress progress-bar <%switch (job.status_text) {' +
+        'case "finished": %>progress-bar-success<% break;' + 
+        'case "failed": %>progress-bar-danger<% break;' +
+        'case "terminated": %>progress-bar-warning<% break;' +
+        'default: %>progress-bar-striped active<% break;' + 
+        '}%>" style="width:<%=job.progress%>%;" aria-valuenow="<%=job.progress%>"'+
+        ' aria-valuemin="0" aria-valuemax="100"' + 
+        ' id="progress-<%=job.id%>"><%=job.progress%>%</div></div>';
+    var tmpl = _.template(progressTmpl); 
     var WorkflowHistory = {
         format: function(jobs) {
             return _.map(jobs, function(job) {
                 return {
+                    user: job.user,
                     name: '<a href="workflow.html#graph/'+job.id+'">' + job.name+ '</a>',
                     created_at: new Date(job.created_at).toLocaleString(),
-                    updated_at: new Date(job.updated_at).toLocaleString()
+                    updated_at: new Date(job.updated_at).toLocaleString(),
+                    progress: tmpl({job: job})
                 }
             });
         },
@@ -34,6 +46,9 @@
                 max: options.pageSize,
                 search: options.search,
             };
+            if (options.filter) {
+                data['status'] = options.filter.value;
+            }
             $.ajax({
                 type: 'GET',
                 data: data,
@@ -45,14 +60,19 @@
                     start: offset + 1,
                     end: offset + json.jobs.length,
                     pages: Math.ceil(json.jobsTotal/options.pageSize),
-                    page: options.pageIndex + 1,
+                    page: options.pageIndex,
                     columns: WorkflowHistory.columns
                 });
             }).fail(function() {
                 Tossboss.error("failed to history");
             });
         },
-        columns: [ 
+        columns: [
+            {
+                property: 'user',
+                label: 'User',
+                sortable: true
+            },
             {
                 property: 'name',
                 label: 'Name',
@@ -66,6 +86,11 @@
             {
                 property: 'updated_at',
                 label: 'Updated At',
+                sortable: true
+            },
+            {
+                property: 'progress',
+                label: 'Progress',
                 sortable: true
             }
         ],

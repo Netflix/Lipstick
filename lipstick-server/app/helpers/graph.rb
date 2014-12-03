@@ -122,6 +122,13 @@ module Lipstick
     # @return [String]
     attr_accessor :id
 
+    # @note Optional
+    # User name of the owner of this workflow.
+    # @example
+    #   thedatachef
+    # @return [String]
+    attr_accessor :user
+    
     # @note Required
     # List of nodes belonging to this graph. Can be empty.
     # @example
@@ -192,11 +199,12 @@ module Lipstick
     # @return [Long] 
     attr_accessor :updated_at
 
-    def initialize id, nodes, edges, name, properties, node_groups, status, created_at, updated_at
+    def initialize id, nodes, edges, name, user, properties, node_groups, status, created_at, updated_at
       @id = id
       @nodes = nodes
       @edges = edges
       @name  = name
+      @user  = user
       @properties  = properties
       @node_groups = node_groups
       @status = status
@@ -216,6 +224,7 @@ module Lipstick
         :nodes       => nodes.map{|node| node.to_hash},
         :edges       => edges.map{|edge| edge.to_hash},
         :name        => name,
+        :user        => user,
         :properties  => (properties || {}),
         :node_groups => node_groups.map{|ng| ng.to_hash},
         :created_at  => created_at,
@@ -246,6 +255,7 @@ module Lipstick
       nodes = data['nodes'].map{|n| Node.from_hash(n)}
       edges = data['edges'].map{|e| Edge.from_hash(e)}
       name  = data['name'] || "workflow-"+data['id']
+      user  = data['user'] || "Unknown"
       
       node_groups = []
       if (data['node_groups'] && data['node_groups'].is_a?(Array))
@@ -261,7 +271,7 @@ module Lipstick
       updated_at = data['updated_at'] || created_at
       
       properties = (data['properties'] || {})
-      Graph.new(id, nodes, edges, name, properties, node_groups, status, created_at, updated_at)
+      Graph.new(id, nodes, edges, name, user, properties, node_groups, status, created_at, updated_at)
     end
 
     def get_node id

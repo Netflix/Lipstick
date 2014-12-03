@@ -265,7 +265,7 @@ class ElasticSearchAdaptor
     end
     
     fields = [
-      "name", "id", "created_at","updated_at"
+      "user", "name", "id", "created_at","updated_at", "status.statusText", "status.progress"
     ]
 
     builder = client.prepare_search(@index)
@@ -278,12 +278,18 @@ class ElasticSearchAdaptor
       # matching. See:
       # http://www.elasticsearch.org/guide/en/elasticsearch/guide/current/_ngrams_for_partial_matching.html
       #
+      q.should(QueryBuilders.regexp_query("user", ".*#{params[:search]}.*"))
       q.should(QueryBuilders.regexp_query("name", ".*#{params[:search]}.*"))
       #
       builder = builder.set_query(q)
     else
       builder = builder.set_query(QueryBuilders.match_all_query)
     end    
+
+    if (params[:status] && !params[:status].empty?) # status filter
+      q = QueryBuilders.match_query("status.statusText", params[:status])
+      builder = builder.set_post_filter(FilterBuilders.query_filter(q))
+    end
     
     begin
       response = builder.set_from(offset).set_size(max)
@@ -293,11 +299,17 @@ class ElasticSearchAdaptor
       hits = response.get_hits
       ret = hits.hits.map do |hit|
         hit_fields   = hit.get_fields
+        progress     = hit_fields.get("status.progress")
+        status_text  = hit_fields.get("status.statusText")
+        user         = hit_fields.get("user")
         {          
-          :id         => hit_fields.get("id").value,
-          :name       => hit_fields.get("name").value,
-          :created_at => hit_fields.get("created_at").value,
-          :updated_at => hit_fields.get("updated_at").value
+          :id          => hit_fields.get("id").value,
+          :name        => hit_fields.get("name").value,
+          :user        => (user ? user.value : "Unknown"),
+          :progress    => (progress ? progress.value : 0),
+          :status_text => (status_text ? status_text.value : "running"),
+          :created_at  => hit_fields.get("created_at").value,
+          :updated_at  => hit_fields.get("updated_at").value
         }                      
       end
       
