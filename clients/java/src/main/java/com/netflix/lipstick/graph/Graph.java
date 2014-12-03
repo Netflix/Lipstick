@@ -24,6 +24,7 @@ public class Graph {
     
     public String id;
     public String name;
+    public String user;
     public Status status;
     public Map<String, Object> properties;    
     
@@ -45,8 +46,13 @@ public class Graph {
     }        
     
     public Graph(String id, String name) {
+        this(id, name, System.getProperty("user.name"));
+    }
+    
+    public Graph(String id, String name, String user) {
         this.id = id;
         this.name = name;
+        this.user = user;
         this.status = new Status();
         this.nodeMap = Maps.newHashMap();
         this.edgeMap = Maps.newHashMap();
@@ -77,6 +83,11 @@ public class Graph {
    
     public Graph name(String name) {
         this.name = name;
+        return this;
+    }
+    
+    public Graph user(String user) {
+        this.user = user;
         return this;
     }
     

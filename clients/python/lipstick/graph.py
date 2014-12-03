@@ -18,9 +18,10 @@ def graph(data):
     return Graph(data.pop('id'), **data)
     
 class Graph():
-    def __init__(self, id, name=None, **kwargs):
+    def __init__(self, id, name=None, user=None, **kwargs):
         self._id = id
         self._name = name
+        self._user = user
         self._status = status(kwargs.get('status', {}))
         self._properties = kwargs.get('properties', {})
         self._nodes = dict()
@@ -43,6 +44,13 @@ class Graph():
             return self
         else:
             return self._name
+
+    def user(self, user=None):
+        if (user):
+            self._user = user
+            return self
+        else:
+            return self._user
 
     def status(self, status=None):
         if (status):
@@ -97,6 +105,7 @@ class Graph():
         data = dict()
         data['id'] = self._id
         if (self._name): data['name'] = self._name
+        if (self._user): data['user'] = self._user
         data['properties'] = self._properties
         data['status'] = self._status._to_dict()
         data['nodes'] = [n._to_dict() for n in self.nodes()]

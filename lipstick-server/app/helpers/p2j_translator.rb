@@ -256,11 +256,10 @@ module Lipstick
           end
         end
         
-        properties['userName'] = userName
         properties['script'] = script.to_hash
         created_at = Time.now.to_i*1000
         Lipstick::Graph.new(uuid, nodes, edges,
-          jobName, properties, node_groups,
+          jobName, userName, properties, node_groups,
           status.to_graph_status, created_at, created_at)
       end
       
