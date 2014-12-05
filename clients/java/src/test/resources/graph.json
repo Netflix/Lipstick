@@ -68,7 +68,10 @@
        "statusText":"failed"
      }
     },
-    {"id": "2", "children": ["c","d"]},
+    {"id": "2", "children": ["c","d"], "stages":[{
+      "name":"map",
+      "status":{"progress":100,"startTime":0,"heartbeatTime":0, "statusText":"finished"}
+    }]},
     {"id": "3", "children": ["e","f","g"]},
     {"id": "4", "children": ["h","i","j"]},
     {"id": "5", "children": ["k","l","m","n","o","p"],

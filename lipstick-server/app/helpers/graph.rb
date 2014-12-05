@@ -9,6 +9,7 @@ module Lipstick
   #   {
   #     "id": "6dda0e50-6871-4c62-9719-3724b0cd0d3b",
   #     "name": "example",
+  #     "user": "example_user",
   #     "status": {
   #       "progress":20,
   #       "startTime":1412354951,
@@ -108,7 +109,7 @@ module Lipstick
   #       }
   #     ],
   #     "properties": {
-  #       "userName":"jacob"    
+  #       "something":"else"    
   #     }
   #   }
   #
@@ -618,7 +619,7 @@ module Lipstick
     # @version 1.0
     # Represents a grouping of nodes in the {Graph}
     # @example
-    #   {"id": "1", "children": ["A","B"]}
+    #   {"id": "1", "children": ["A","B"], "stages":[{"name":"map", "status":{"statusText":"finished"}}]}
     #
     class NodeGroup
       
@@ -660,6 +661,12 @@ module Lipstick
       attr_accessor :status
 
       # @note Optional
+      # Stages of this node group. Each
+      # stage has a name and a status.
+      # @return [Array[Stage]]
+      attr_accessor :stages
+      
+      # @note Optional
       # Url to more information about this node group. Allows a node
       # group to reference an external resource.
       # @return [String]
@@ -668,11 +675,12 @@ module Lipstick
       # @private
       attr_accessor :parent
 
-      def initialize id, children, properties, status, url
+      def initialize id, children, properties, status, stages, url
         @id         = id
         @children   = children
         @properties = properties
         @status     = status
+        @stages     = stages
         @url        = url
       end
 
@@ -681,6 +689,7 @@ module Lipstick
           :id         => id,
           :children   => children,
           :status     => (status ? status.to_hash : {}),
+          :stages     => (stages ? stages.map{|stage| stage.to_hash} : []),
           :properties => properties
         }
         r[:url] = url if url
@@ -694,8 +703,14 @@ module Lipstick
         if (hsh['status'] && hsh['status'].is_a?(Hash))
           status = Status.from_hash(hsh['status'])
         end
+
+        stages = []
+        if (hsh['stages'] && hsh['stages'].is_a?(Array))
+          stages = hsh['stages'].map{|s| Stage.from_hash(s)}
+        end
+        
         url = hsh['url']
-        NodeGroup.new(hsh['id'], hsh['children'], properties, status, url)
+        NodeGroup.new(hsh['id'], hsh['children'], properties, status, stages, url)
       end
 
       def update_with! data
@@ -703,6 +718,12 @@ module Lipstick
         @url      = data['url'] if data['url']
         @children = data['children'] if data['children']
         @status.update_with!(data['status']) if data['status']
+        if data['stages']
+          @stages.each do |stage|
+            stage_update = data['stages'].find{|s| s['name'] == stage.name}
+            stage.update_with!(stage_update) if stage_update
+          end
+        end        
         @properties.merge!(data['properties']) if data['properties']
       end
       
@@ -710,6 +731,47 @@ module Lipstick
         (@parent != nil)
       end      
     end
+
+    class Stage
+      
+      # @note Required
+      # Name of the stage.
+      # @example
+      #   "map"
+      # @example
+      #   "reduce"
+      # @return [String] 
+      attr_accessor :name
+
+      # @note Required
+      # Status of this stage
+      # @return [Status] 
+      attr_accessor :status
+
+      def initialize name, status
+        @name   = name
+        @status = status
+      end
+
+      def to_hash
+        {
+          :name   => name,
+          :status => status.to_hash
+        }
+      end
+
+      def self.from_hash hsh
+        raise ArgumentError, "All stages must have a name" unless hsh['name']
+        raise ArgumentError, "All stages must have a status" unless hsh['status']
+
+        self.new(hsh['name'], Status.from_hash(hsh['status']))
+      end
+
+      def update_with! data
+        @status.update_with!(data['status']) if data['status']
+      end      
+    end
+    
 
     class NodeMissingException < Exception; end
     

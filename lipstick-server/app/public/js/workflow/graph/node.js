@@ -3,7 +3,7 @@ define(['knockout', 'lib/mustache', './status', '../utils', '../templates'],
            
            function Node(data) {
                var self = this;
-               self.status = new Status(data.status || {});
+               self.status = ko.observable(new Status(data.status || {}));
                self.id = ko.observable(data.id);
                self.child = ko.observable(data.child);
                self.properties = ko.observable(data.properties);

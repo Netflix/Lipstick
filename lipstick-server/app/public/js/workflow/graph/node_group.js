@@ -1,4 +1,4 @@
-define(['knockout', './status', '../utils'], function(ko, Status, utils) {
+define(['knockout', './status', './stage', '../utils'], function(ko, Status, Stage, utils) {
     function NodeGroup(data) {
         var self = this;
         self.url = ko.observable(data.url);
@@ -12,6 +12,12 @@ define(['knockout', './status', '../utils'], function(ko, Status, utils) {
             utils.sortTreeTable(utils.flatten(data.properties))
         );
 
+        self.stages = ko.observableArray((data.stages ? data.stages : []).map(
+            function(stage) {
+                return new Stage(stage);
+            }
+        ));
+        
         self.title = ko.computed(function() {
             if (self.url()) {
                 // HACK - handles legacy MRJob case
@@ -26,6 +32,7 @@ define(['knockout', './status', '../utils'], function(ko, Status, utils) {
                 return self.name();
             }
         });
+     
     };
     return NodeGroup;
 });
