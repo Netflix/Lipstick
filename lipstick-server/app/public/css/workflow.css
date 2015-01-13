@@ -44,6 +44,7 @@ body {
 
 table th, table td {
   padding: 5px 5px 3px;
+  white-space: pre;
 }
 
 table.treetable {

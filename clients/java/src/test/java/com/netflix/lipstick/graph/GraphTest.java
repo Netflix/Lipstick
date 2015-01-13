@@ -70,7 +70,9 @@ public class GraphTest {
                     .child("a").child("b")
                     .status(new Status(10, 1412354951l, 1412354796l, "failed"))
                     )
-            .nodeGroup(new NodeGroup("2").child("c").child("d"))
+            .nodeGroup(new NodeGroup("2").child("c").child("d")
+                    .stage(new Stage("map", new Status(100,0l,0l,"finished"))
+                    ))
             .nodeGroup(new NodeGroup("3").child("e").child("f").child("g"))
             .nodeGroup(new NodeGroup("4").child("h").child("i").child("j"))
             .nodeGroup(

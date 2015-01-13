@@ -14,16 +14,19 @@ public class NodeGroup {
     public String id;
     public String url;
     public Status status;
+    public List<Stage> stages;
     public List<String> children;
     public Map<String, Object> properties;
     
     public NodeGroup() {
+        this.stages = Lists.newArrayList();
         this.properties = Maps.newHashMap();
         this.children = Lists.newArrayList();
     }
     
     public NodeGroup(String id) {
         this.id = id;
+        this.stages = Lists.newArrayList();
         this.properties = Maps.newHashMap();
         this.children = Lists.newArrayList();
     }
@@ -40,6 +43,16 @@ public class NodeGroup {
     
     public NodeGroup status(Status status) {
         this.status = status;
+        return this;
+    }
+    
+    public NodeGroup stage(Stage stage) {
+        this.stages.add(stage);
+        return this;
+    }
+    
+    public NodeGroup stages(List<Stage> stages) {
+        this.stages = stages;
         return this;
     }
     
@@ -83,6 +96,7 @@ public class NodeGroup {
                 this.id == null ? ng.id == null : this.id.equals(ng.id) &&
                 this.url == null ? ng.url == null : this.url.equals(ng.url) &&
                 this.status == null ? ng.status == null : this.status.equals(ng.status) &&
+                this.stages.equals(ng.stages) &&
                 this.children.equals(ng.children) &&
                 this.properties.equals(ng.properties);
     }

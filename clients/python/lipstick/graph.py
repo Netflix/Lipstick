@@ -13,6 +13,9 @@ def node_group(data):
 
 def status(data):
     return Status(**data)
+
+def stage(data):
+    return Stage(data.pop('name'), **data)
     
 def graph(data):
     return Graph(data.pop('id'), **data)
@@ -68,7 +71,7 @@ class Graph():
         return self
 
     def node_group(self, node_group):
-        self._node_groups[node_group.id] = node_group
+        self._node_groups[node_group.id()] = node_group
         return self
         
     def get_node(self, node_id):
@@ -236,6 +239,8 @@ class NodeGroup():
     def __init__(self, id, url=None, **kwargs):
         self._id = id
         self._url = url
+        self._stages = []
+        self.stages(kwargs.get('stages', []))
         self._status = status(kwargs.get('status', {}))
         self._children = kwargs.get('children', [])
         self._properties = kwargs.get('properties', {})
@@ -254,6 +259,17 @@ class NodeGroup():
         else:
             return self._url
 
+    def stage(self, stage):        
+        self._stages.append(stage)
+        return self
+        
+    def stages(self, stages=None):
+        if (stages):
+            self._stages = [stage(s) for s in stages]
+            return self
+        else:
+            return self._stages
+            
     def status(self, status=None):
         if (status):
             self._status = status
@@ -291,9 +307,35 @@ class NodeGroup():
         data['status'] = self._status._to_dict()
         data['children'] = self._children
         data['properties'] = self._properties
+        data['stages'] = [s._to_dict() for s in self._stages]
         if (self._url): data['url'] = self._url        
         return data
 
+class Stage():
+    def __init__(self, name, **kwargs):
+        self._name = name
+        self._status = status(kwargs.get('status', {}))
+
+    def name(self, name=None):
+        if (name):
+            self._name = name
+            return self
+        else:
+            return self._name
+
+    def status(self, status=None):
+        if (status):
+            self._status = status
+            return self
+        else:
+            return self._status
+
+    def _to_dict(self):
+        data = dict()
+        data['name'] = self._name
+        data['status'] = self._status._to_dict()
+        return data
+        
 class Status():
     def __init__(self, progress=0, endTime=None, statusText=None, **kwargs):
         now = int(round(time()*1000.0))

@@ -85,6 +85,11 @@ module Lipstick
             else
               ng['status']['progress'] = ((mapProgress + reduceProgress)/2 * 100).to_i
             end
+
+            mapStage    = {'name' => 'map',    'status' => {'progress' => mapProgress}}
+            reduceStage = {'name' => 'reduce', 'status' => {'progress' => reduceProgress}}
+            ng['stages'] = [mapStage, reduceStage]
+            
             ng['url'] = jobStatus.trackingUrl if jobStatus.trackingUrl
             ng['properties'] = {
               'jobId'       => jobStatus.jobId,
