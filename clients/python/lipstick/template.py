@@ -1,3 +1,5 @@
+import json
+
 def template(data):
     return Template(data.pop('name'), **data)
 
