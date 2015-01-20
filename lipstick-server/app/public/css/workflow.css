@@ -43,13 +43,16 @@ body {
 }
 
 table th, table td {
-  padding: 5px 5px 3px;
-  white-space: pre;
+  padding: 5px 5px 3px;  
 }
 
 table.treetable {
   border: none;
   font-size: 1.2em;
+}
+
+table.treetable tr.leaf td:last-child {
+  white-space: pre;
 }
 
 table.treetable tr :first-child {
