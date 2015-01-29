@@ -43,7 +43,7 @@ class Client(BaseClient):
             response.raise_for_status()
         
     def save(self, graph):
-        return self.post(Client.job_path, data=graph.json())
+        return self.post(Client.job_path, data=graph.json(), headers={'content-type': 'application/json'})
 
     def update(self, graph):
         path = '%s/%s' % (Client.job_path, graph.id())
