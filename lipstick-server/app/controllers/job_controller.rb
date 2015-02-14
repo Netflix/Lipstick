@@ -46,6 +46,69 @@ class PlanService
     return ser
   end
 
+  def self.get_max_uid plan
+    # take advantage of the fact that uid values are just
+    # stringified integers
+    plan.keys.map{|k| k.to_i}.sort.last
+  end
+
+  #
+  # Combine p2j plan packages
+  #
+  def self.combine p1, p2
+    op_uid = get_max_uid(p1.get_optimized.get_plan) + 1
+    p2_optimized = p2.get_optimized.get_plan.inject({}) do |plan, kv|
+      uid, op = kv
+      op.uid = op_uid.to_s      
+      plan[op_uid.to_s] = op
+      op_uid += 1
+      plan
+    end
+    p2_optimized.each do |uid, op|
+      op.successors = op.successors.map do |s|
+        succ = p2.optimized.plan.get(s)
+        succ.uid
+      end
+      op.predecessors = op.predecessors.map do |p|
+        pred = p2.optimized.plan.get(p)
+        pred.uid
+      end
+    end
+    
+    op_uid = get_max_uid(p1.get_unoptimized.get_plan) + 1
+    p2_unoptimized = p2.get_unoptimized.get_plan.inject({}) do |plan, kv|
+      uid, op = kv
+      op.uid = op_uid.to_s
+      plan[op_uid.to_s] = op
+      op_uid += 1
+      plan
+    end
+    p2_unoptimized.each do |uid, op|
+      op.successors = op.successors.map do |s|
+        succ = p2.unoptimized.plan.get(s)
+        succ.uid
+      end
+      op.predecessors = op.predecessors.map do |p|
+        pred = p2.unoptimized.plan.get(p)
+        pred.uid
+      end
+    end
+    
+    p1_optimized = p1.get_optimized
+    p1_unoptimized = p1.get_unoptimized
+    p1_optimized_plan = p1_optimized.get_plan
+    p1_unoptimized_plan = p1_unoptimized.get_plan
+    
+    p1_optimized_plan.put_all(p2_optimized)
+    p1_unoptimized_plan.put_all(p2_unoptimized)
+    p1_optimized.set_plan(p1_optimized_plan)
+    p1_unoptimized.set_plan(p1_unoptimized_plan)
+    
+    p1.set_optimized(p1_optimized)
+    p1.set_unoptimized(p1_unoptimized)
+    return p1
+  end
+  
   #
   # @deprecated
   # Save P2jPlanPackage representation of workflow. Currently
@@ -59,12 +122,19 @@ class PlanService
     ser  = p2j_from_json(json, P2jPlanPackage.java_class)
     return unless ser
 
-    # Translate to new representation and save 
-    save_p2j_graph(json)
-    #
-    
     uuid = ser.get_uuid
+    plan = @@es.get(uuid, 'plan')
+    ser = combine(p2j_from_json(plan, P2jPlanPackage.java_class), ser) if plan
     
+    # Translate to new representation and save
+    #
+    if plan
+      save_p2j_graph(@@om.write_value_as_string(ser))
+    else
+      save_p2j_graph(json)
+    end
+    #
+
     svg  = Pig2DotGenerator.new(ser.get_optimized).generate_plan("svg")
     ser.get_optimized.set_svg(svg)
 
@@ -108,7 +178,7 @@ class PlanService
   # @return [Hash]
   #
   def self.save_p2j_graph json
-    begin
+    begin      
       graph = Lipstick::Adapter::P2jPlanPackage.from_json(json).to_graph
       store(graph)
     rescue ArgumentError => e
@@ -282,26 +352,51 @@ class PlanService
     graph = @@es.get(params[:id], 'graph')
     return unless graph
 
-    graph = Lipstick::Graph.from_json(graph)    
+    graph = Lipstick::Graph.from_json(graph)
+    updates = graph.updates
     data  = JSON.parse(json)
     graph.status = data['status'] if data['status']
 
     begin
       if (data['node_groups'] && data['node_groups'].is_a?(Array))
         data['node_groups'].each do |ng|
-          graph.update_node_group!(ng['id'], ng)
+          ng_id = ng['id']
+          if updates > 0
+            ng_id = ng_id + "_#{updates}"
+            ng['id'] = ng_id
+            ng['children'].map! do |child|
+              "#{child}_#{updates}"
+            end
+          end
+          graph.update_node_group!(ng_id, ng)
         end      
       end
 
       if (data['nodes'] && data['nodes'].is_a?(Array))
         data['nodes'].each do |n|
-          graph.update_node!(n['id'], n)
+          n_id = n['id']
+          if updates > 0
+            n_id = n_id + "_#{updates}"
+            n['id'] = n_id
+            if n.has_key? 'child'
+              n['child'] = n['child'] + "_#{updates}"
+            end
+          end
+          graph.update_node!(n_id, n)
         end      
       end
 
       if (data['edges'] && data['edges'].is_a?(Array))
         data['edges'].each do |e|
-          graph.update_edge!(e['u'], e['v'], e)
+          e_u = e['u']
+          e_v = e['v']
+          if updates > 0
+            e_u = e_u + "_#{updates}"
+            e_v = e_v + "_#{updates}"
+            e['u'] = e_u
+            e['v'] = e_v
+          end
+          graph.update_edge!(e_u, e_v, e)
         end      
       end
       store(graph)

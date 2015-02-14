@@ -200,7 +200,11 @@ module Lipstick
     # @return [Long] 
     attr_accessor :updated_at
 
-    def initialize id, nodes, edges, name, user, properties, node_groups, status, created_at, updated_at
+    # Number of times this graph has been updated with additional graphs
+    # @return [Long]
+    attr_accessor :updates
+    
+    def initialize id, nodes, edges, name, user, properties, node_groups, status, created_at, updated_at, updates
       @id = id
       @nodes = nodes
       @edges = edges
@@ -211,6 +215,7 @@ module Lipstick
       @status = status
       @created_at = created_at
       @updated_at = updated_at
+      @updates = updates
     end
 
     #
@@ -229,7 +234,8 @@ module Lipstick
         :properties  => (properties || {}),
         :node_groups => node_groups.map{|ng| ng.to_hash},
         :created_at  => created_at,
-        :updated_at  => updated_at
+        :updated_at  => updated_at,
+        :updates     => updates
       }
     end
 
@@ -270,9 +276,10 @@ module Lipstick
 
       created_at = data['created_at'] || Time.now.to_i*1000
       updated_at = data['updated_at'] || created_at
+      updates    = data['updates'] || 0
       
       properties = (data['properties'] || {})
-      Graph.new(id, nodes, edges, name, user, properties, node_groups, status, created_at, updated_at)
+      Graph.new(id, nodes, edges, name, user, properties, node_groups, status, created_at, updated_at, updates)
     end
 
     def get_node id
@@ -287,6 +294,37 @@ module Lipstick
       edges.find{|e| (e.u == u && e.v == v)}
     end
 
+    #
+    # Merge new graph into self
+    #
+    def add! g
+      # Append update counter to each id
+      @updates += 1      
+      new_nodes = g.nodes.map do |n|
+        n.id = "#{n.id}_#{updates}"
+        if n.has_child?
+          n.child = "#{n.child}_#{updates}"
+        end        
+        n
+      end
+      
+      new_edges = g.edges.map do |e|
+        e.u = "#{e.u}_#{updates}"; e.v = "#{e.v}_#{updates}"
+        e
+      end
+      
+      new_node_groups = g.node_groups.map do |ng|
+        ng.id = "#{ng.id}_#{updates}"
+        ng.children.map! do |child|
+          "#{child}_#{updates}"
+        end
+        ng
+      end
+      @nodes += new_nodes
+      @edges += new_edges
+      @node_groups += new_node_groups
+    end
+    
     #
     # Insert or update an edge
     #
