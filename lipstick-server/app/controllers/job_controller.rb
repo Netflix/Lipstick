@@ -46,6 +46,69 @@ class PlanService
     return ser
   end
 
+  def self.get_max_uid plan
+    # take advantage of the fact that uid values are just
+    # stringified integers
+    plan.keys.map{|k| k.to_i}.sort.last
+  end
+
+  #
+  # Combine p2j plan packages
+  #
+  def self.combine p1, p2
+    op_uid = get_max_uid(p1.get_optimized.get_plan) + 1
+    p2_optimized = p2.get_optimized.get_plan.inject({}) do |plan, kv|
+      uid, op = kv
+      op.uid = op_uid.to_s      
+      plan[op_uid.to_s] = op
+      op_uid += 1
+      plan
+    end
+    p2_optimized.each do |uid, op|
+      op.successors = op.successors.map do |s|
+        succ = p2.optimized.plan.get(s)
+        succ.uid
+      end
+      op.predecessors = op.predecessors.map do |p|
+        pred = p2.optimized.plan.get(p)
+        pred.uid
+      end
+    end
+    
+    op_uid = get_max_uid(p1.get_unoptimized.get_plan) + 1
+    p2_unoptimized = p2.get_unoptimized.get_plan.inject({}) do |plan, kv|
+      uid, op = kv
+      op.uid = op_uid.to_s
+      plan[op_uid.to_s] = op
+      op_uid += 1
+      plan
+    end
+    p2_unoptimized.each do |uid, op|
+      op.successors = op.successors.map do |s|
+        succ = p2.unoptimized.plan.get(s)
+        succ.uid
+      end
+      op.predecessors = op.predecessors.map do |p|
+        pred = p2.unoptimized.plan.get(p)
+        pred.uid
+      end
+    end
+    
+    p1_optimized = p1.get_optimized
+    p1_unoptimized = p1.get_unoptimized
+    p1_optimized_plan = p1_optimized.get_plan
+    p1_unoptimized_plan = p1_unoptimized.get_plan
+    
+    p1_optimized_plan.put_all(p2_optimized)
+    p1_unoptimized_plan.put_all(p2_unoptimized)
+    p1_optimized.set_plan(p1_optimized_plan)
+    p1_unoptimized.set_plan(p1_unoptimized_plan)
+    
+    p1.set_optimized(p1_optimized)
+    p1.set_unoptimized(p1_unoptimized)
+    return p1
+  end
+  
   #
   # @deprecated
   # Save P2jPlanPackage representation of workflow. Currently
@@ -59,18 +122,19 @@ class PlanService
     ser  = p2j_from_json(json, P2jPlanPackage.java_class)
     return unless ser
 
+    uuid = ser.get_uuid
+    plan = @@es.get(uuid, 'plan')
+    ser = combine(p2j_from_json(plan, P2jPlanPackage.java_class), ser) if plan
+    
     # Translate to new representation and save
-    graph = @@es.get(ser.get_uuid, 'graph')
-    if graph
-      # graph already exists, merge
-      merge_p2j_graph(graph, json)
+    #
+    if plan
+      save_p2j_graph(@@om.write_value_as_string(ser))
     else
       save_p2j_graph(json)
     end
     #
-    
-    uuid = ser.get_uuid
-    
+
     svg  = Pig2DotGenerator.new(ser.get_optimized).generate_plan("svg")
     ser.get_optimized.set_svg(svg)
 
@@ -117,26 +181,6 @@ class PlanService
     begin      
       graph = Lipstick::Adapter::P2jPlanPackage.from_json(json).to_graph
       store(graph)
-    rescue ArgumentError => e
-      return {
-        :error => e.to_s
-      }
-    end    
-  end
-
-  #
-  # Translate a P2jPlanPackage object to a {Lipstick::Graph}
-  # and merge with existing
-  # @param existing [String] JSON encoded {Lipstick::Graph}
-  # @param update [String] JSON encoded P2jPlanPackage object
-  # @return [Hash]
-  #
-  def self.merge_p2j_graph existing, update
-    begin
-      g1 = Lipstick::Graph.from_json(existing)      
-      g2 = Lipstick::Adapter::P2jPlanPackage.from_json(update).to_graph
-      g1.add!(g2)
-      store(g1)
     rescue ArgumentError => e
       return {
         :error => e.to_s
