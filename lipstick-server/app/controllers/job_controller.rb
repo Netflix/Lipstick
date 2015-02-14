@@ -59,8 +59,14 @@ class PlanService
     ser  = p2j_from_json(json, P2jPlanPackage.java_class)
     return unless ser
 
-    # Translate to new representation and save 
-    save_p2j_graph(json)
+    # Translate to new representation and save
+    graph = @@es.get(ser.get_uuid, 'graph')
+    if graph
+      # graph already exists, merge
+      merge_p2j_graph(graph, json)
+    else
+      save_p2j_graph(json)
+    end
     #
     
     uuid = ser.get_uuid
@@ -108,9 +114,29 @@ class PlanService
   # @return [Hash]
   #
   def self.save_p2j_graph json
-    begin
+    begin      
       graph = Lipstick::Adapter::P2jPlanPackage.from_json(json).to_graph
       store(graph)
+    rescue ArgumentError => e
+      return {
+        :error => e.to_s
+      }
+    end    
+  end
+
+  #
+  # Translate a P2jPlanPackage object to a {Lipstick::Graph}
+  # and merge with existing
+  # @param existing [String] JSON encoded {Lipstick::Graph}
+  # @param update [String] JSON encoded P2jPlanPackage object
+  # @return [Hash]
+  #
+  def self.merge_p2j_graph existing, update
+    begin
+      g1 = Lipstick::Graph.from_json(existing)      
+      g2 = Lipstick::Adapter::P2jPlanPackage.from_json(update).to_graph
+      g1.add!(g2)
+      store(g1)
     rescue ArgumentError => e
       return {
         :error => e.to_s
@@ -282,26 +308,51 @@ class PlanService
     graph = @@es.get(params[:id], 'graph')
     return unless graph
 
-    graph = Lipstick::Graph.from_json(graph)    
+    graph = Lipstick::Graph.from_json(graph)
+    updates = graph.updates
     data  = JSON.parse(json)
     graph.status = data['status'] if data['status']
 
     begin
       if (data['node_groups'] && data['node_groups'].is_a?(Array))
         data['node_groups'].each do |ng|
-          graph.update_node_group!(ng['id'], ng)
+          ng_id = ng['id']
+          if updates > 0
+            ng_id = ng_id + "_#{updates}"
+            ng['id'] = ng_id
+            ng['children'].map! do |child|
+              "#{child}_#{updates}"
+            end
+          end
+          graph.update_node_group!(ng_id, ng)
         end      
       end
 
       if (data['nodes'] && data['nodes'].is_a?(Array))
         data['nodes'].each do |n|
-          graph.update_node!(n['id'], n)
+          n_id = n['id']
+          if updates > 0
+            n_id = n_id + "_#{updates}"
+            n['id'] = n_id
+            if n.has_key? 'child'
+              n['child'] = n['child'] + "_#{updates}"
+            end
+          end
+          graph.update_node!(n_id, n)
         end      
       end
 
       if (data['edges'] && data['edges'].is_a?(Array))
         data['edges'].each do |e|
-          graph.update_edge!(e['u'], e['v'], e)
+          e_u = e['u']
+          e_v = e['v']
+          if updates > 0
+            e_u = e_u + "_#{updates}"
+            e_v = e_v + "_#{updates}"
+            e['u'] = e_u
+            e['v'] = e_v
+          end
+          graph.update_edge!(e_u, e_v, e)
         end      
       end
       store(graph)

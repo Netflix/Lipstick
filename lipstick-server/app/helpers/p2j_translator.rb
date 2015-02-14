@@ -245,13 +245,13 @@ module Lipstick
         end
 
         # node group for optimized
-        nodes       << {'id' => 'optimized', 'child' => idx.to_s}
-        node_groups << {'id' => idx.to_s, 'children' => optimized_children}
+        nodes       << Lipstick::Graph::Node.from_hash({'id' => 'optimized', 'child' => idx.to_s})
+        node_groups << Lipstick::Graph::NodeGroup.from_hash({'id' => idx.to_s, 'children' => optimized_children})
         idx += 1
 
         # node group for unoptimized
-        nodes       << {'id' => 'unoptimized', 'child' => idx.to_s}
-        node_groups << {'id' => idx.to_s, 'children' => unoptimized_children}
+        nodes       << Lipstick::Graph::Node.from_hash({'id' => 'unoptimized', 'child' => idx.to_s})
+        node_groups << Lipstick::Graph::NodeGroup.from_hash({'id' => idx.to_s, 'children' => unoptimized_children})
         idx += 1
         
         nodeMap.values.each do |node|
@@ -265,7 +265,7 @@ module Lipstick
         created_at = Time.now.to_i*1000
         Lipstick::Graph.new(uuid, nodes, edges,
           jobName, userName, properties, node_groups,
-          status.to_graph_status, created_at, created_at)
+          status.to_graph_status, created_at, created_at, 0)
       end
       
       class P2jPlan
