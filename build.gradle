@@ -17,6 +17,11 @@ subprojects {
         jcenter()
     }
     group = 'com.netflix.lipstick'
+
+    license {
+      exclude '**/*.json'
+      exclude '**/*.pig'
+    }
 }
 
 task('show-version') {
@@ -24,38 +29,6 @@ task('show-version') {
         println version
     }
 }
-
-//apply plugin: 'license'
-
-//task(licensesAll, type: License) {
-//    check = false
-//    skipExistingHeaders = true
-//    source '.'
-//    include 'lipstick-console/src/**/*.java'
-//    include 'lipstick-server/app/**/*.rb'
-//    include 'lipstick-server/app/public/js/tossboss*.js'
-//    include 'lipstick-server/app/public/js/workflow*.js'
-//    include 'lipstick-server/app/public/js/workflow/**/*.js'
-//    include 'lipstick-server/app/public/tossboss*/js/*.js'
-//    include 'lipstick-server/app/public/*.html'
-//    include 'lipstick-server/app/public/tossboss*/*.html'
-//    include 'lipstick-server/app/public/tossboss*/css/*.css'
-//    include 'scripts/**'
-//    include 'test/integration/**'
-//    include 'test/unit/**'
-//    include 'lipstick-app/css/**'
-//    include 'lipstick-app/js/**'
-//    exclude '**/*.json'
-//}
-
-/*license {
-    header rootProject.file('codequality/HEADER')
-    ext.year = Calendar.getInstance().get(Calendar.YEAR)
-    mapping {
-        groovy='SLASHSTAR_STYLE'
-        gsp='DYNASCRIPT_STYLE'
-    }
-}*/
 
 defaultTasks 'buildRelease'
 
@@ -77,6 +50,21 @@ task('clean-expanded', type:Delete) {
 }
 
 project(':lipstick-server') {
+  license {
+    include '**/*.rb'
+    include 'app/public/js/tossboss*.js'
+    include 'app/public/js/workflow*.js'
+    include 'app/public/js/workflow/**/*.js'
+    include 'app/public/tossboss*/js/*.js'
+    include 'app/public/*.html'
+    include 'app/public/tossboss*/*.html'
+    include 'app/public/tossboss*/css/*.css'
+  }
+
+  task licenseServer(type: nl.javadude.gradle.plugins.license.License) {
+    source = fileTree(dir: 'app')
+  }
+
   dependencies {
   
     runtime('org.apache.pig:pig:0.13.0:h2') {
