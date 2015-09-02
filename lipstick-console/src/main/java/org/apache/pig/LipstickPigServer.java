@@ -164,4 +164,15 @@ public class LipstickPigServer extends PigServer {
         super.parseAndBuild();
         unoptimizedPlanGenerator = new P2jPlanGenerator(getCurrentDAG().getLogicalPlan());
     }
+
+    /**
+     * Returns the LogicalPlan contained in the current DAG with the given alias.
+     *
+     * @param alias
+     * @return
+     * @throws IOException
+     */
+    public LogicalPlan getLP(String alias) throws IOException {
+        return getCurrentDAG().getPlan(alias);
+    }
 }
