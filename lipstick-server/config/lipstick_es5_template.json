@@ -1,0 +1,216 @@
+{
+  "lipstick": {
+    "order": 0,
+    "template": "lipstick_*",
+    "settings": {
+      "index": {
+        "number_of_shards": "6",
+        "number_of_replicas": "1",
+        "mapper": {
+          "dynamic": "false"
+        }
+      }
+    },
+    "mappings": {
+      "node_template": {
+        "dynamic": false,
+        "properties": {
+          "template": {
+            "index": true,
+            "type": "keyword"
+          },
+          "view": {
+            "index": true,
+            "type": "keyword"
+          },
+          "name": {
+            "type": "keyword"
+          }
+        }
+      },
+      "graph": {
+        "dynamic": false,
+        "properties": {
+          "nodes": {
+            "properties": {
+              "id": {
+                "index": true,
+                "type": "keyword"
+              },
+              "type": {
+                "type": "text"
+              },
+              "properties": {
+                "type": "object"
+              },
+              "child": {
+                "type": "text"
+              }
+            }
+          },
+          "updated_at": {
+            "format": "epoch_millis",
+            "type": "date"
+          },
+          "edges": {
+            "properties": {
+              "u": {
+                "index": true,
+                "type": "keyword"
+              },
+              "v": {
+                "index": true,
+                "type": "keyword"
+              },
+              "properties": {
+                "type": "object"
+              }
+            }
+          },
+          "name": {
+            "index": true,
+            "type": "keyword"
+          },
+          "created_at": {
+            "format": "epoch_millis",
+            "type": "date"
+          },
+          "id": {
+            "index": true,
+            "type": "keyword"
+          },
+          "properties": {
+            "type": "object"
+          },
+          "status": {
+            "properties": {
+              "heartbeatTime": {
+                "format": "epoch_millis",
+                "type": "date"
+              },
+              "statusText": {
+                "type": "keyword"
+              },
+              "progress": {
+                "type": "integer"
+              },
+              "startTime": {
+                "format": "epoch_millis",
+                "type": "date"
+              },
+              "endTime": {
+                "format": "epoch_millis",
+                "type": "date"
+              }
+            }
+          }
+        }
+      },
+      "plan": {
+        "dynamic": false,
+        "properties": {
+          "jobName": {
+            "index": true,
+            "type": "keyword"
+          },
+          "optimized": {
+            "properties": {
+              "svg": {
+                "index": false,
+                "type": "text"
+              },
+              "id": {
+                "type": "keyword"
+              },
+              "plan": {
+                "type": "object",
+                "enabled": false
+              }
+            }
+          },
+          "id": {
+            "type": "keyword"
+          },
+          "unoptimized": {
+            "properties": {
+              "svg": {
+                "index": false,
+                "type": "text"
+              },
+              "id": {
+                "type": "keyword"
+              },
+              "plan": {
+                "type": "object",
+                "enabled": false
+              }
+            }
+          },
+          "scripts": {
+            "properties": {
+              "id": {
+                "type": "keyword"
+              },
+              "script": {
+                "type": "text"
+              }
+            }
+          },
+          "userName": {
+            "index": true,
+            "type": "keyword"
+          },
+          "uuid": {
+            "index": true,
+            "type": "keyword"
+          },
+          "status": {
+            "properties": {
+              "heartbeatTime": {
+                "format": "epoch_millis",
+                "type": "date"
+              },
+              "statusText": {
+                "index": true,
+                "type": "keyword"
+              },
+              "progress": {
+                "type": "integer"
+              },
+              "startTime": {
+                "format": "epoch_millis",
+                "type": "date"
+              },
+              "endTime": {
+                "format": "epoch_millis",
+                "type": "date"
+              },
+              "id": {
+                "type": "keyword"
+              },
+              "jobStatusMap": {
+                "type": "object",
+                "enabled": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "aliases": {}
+  },
+  "cde_default": {
+    "order": -1000,
+    "template": "*",
+    "settings": {
+      "index": {
+        "codec": "best_compression",
+        "refresh_interval": "15s",
+        "number_of_shards": "6",
+        "number_of_replicas": "2"
+      }
+    },
+    "mappings": {},
+    "aliases": {}
+  }
+}
