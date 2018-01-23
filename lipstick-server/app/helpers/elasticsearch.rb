@@ -2,11 +2,13 @@ import 'java.util.Properties'
 import 'java.util.concurrent.TimeUnit'
 import 'java.util.concurrent.Executors'
 import 'java.util.concurrent.ScheduledExecutorService'
+import 'java.net.InetAddress'
 
 import 'org.elasticsearch.client.transport.TransportClient'
-import 'org.elasticsearch.common.settings.ImmutableSettings'
+import 'org.elasticsearch.transport.client.PreBuiltTransportClient'
+import 'org.elasticsearch.common.settings.Settings'
 import 'org.elasticsearch.common.transport.InetSocketTransportAddress'
-import 'org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus'
+import 'org.elasticsearch.cluster.health.ClusterHealthStatus'
 
 import 'com.netflix.discovery.DiscoveryManager'
 import 'com.netflix.appinfo.InstanceInfo'
@@ -64,7 +66,11 @@ class Elasticsearch
   
   
   def start
-    @client = TransportClient.new(ImmutableSettings.settingsBuilder().put(@config).build)
+    es_settings = Settings.builder()
+                  .put('cluster.name', config.get('cluster.name'))
+		  .put('transport.tcp.port', config.get('transport.tcp.port'))
+		  .build()
+    @client = PreBuiltTransportClient.new(es_settings)
     update_registry
     @checker_handle = @@scheduler.schedule_at_fixed_rate(RegistryUpdater.new(self), 60, 60, TimeUnit::SECONDS)    
   end
@@ -78,20 +84,17 @@ class Elasticsearch
       instances.each do |instance|
         new_server_set << instance.get_host_name if instance.get_status == InstanceInfo::InstanceStatus::UP
       end
-
       (@@es_server_set - new_server_set).each do |removed|
-        @client.remove_transport_address(InetSocketTransportAddress.new(removed, @port))
+        @client.remove_transport_address(InetSocketTransportAddress.new(InetAddress.getByName(removed), @port.to_i))
         @@es_server_set.delete(removed)
       end
-
       (new_server_set - @@es_server_set).each do |added|
-        if healthy?(added, @config, @port)
+	if healthy?(added, @config, @port)
           $stderr.puts("Using Elasticsearch host: [#{added}]")
-          @client.add_transport_address(InetSocketTransportAddress.new(added, @port));
+          @client.add_transport_address(InetSocketTransportAddress.new(InetAddress.getByName(added), @port.to_i));
           @@es_server_set << added
         end        
       end
-
     rescue => e
       $stderr.puts("Error updating registry")
       $stderr.puts(e.backtrace)
@@ -101,9 +104,13 @@ class Elasticsearch
   def healthy? host, props, port
     local_client = nil
     begin
-      local_client = TransportClient.new(ImmutableSettings.settings_builder.put(props).build)
-        .add_transport_address(InetSocketTransportAddress.new(host, port))
-      health_status = local_client.admin.cluster.prepare_health.set_timeout('1000').execute.get.get_status
+      es_settings = Settings.builder()
+                    .put('cluster.name', props.get('cluster.name'))
+		    .put('transport.tcp.port', props.get('transport.tcp.port'))
+		    .build()
+      local_client = PreBuiltTransportClient.new(es_settings)
+        .add_transport_address(InetSocketTransportAddress.new(InetAddress.getByName(host), port.to_i))
+      health_status = local_client.admin.cluster.prepare_health.set_timeout('1000s').execute.get.get_status
       if health_status == ClusterHealthStatus::GREEN || health_status == ClusterHealthStatus::YELLOW
         return true
       else
