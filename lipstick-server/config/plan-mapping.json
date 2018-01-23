@@ -1,76 +1,89 @@
 {
-  "_ttl": { "enabled" : true, "default": "30d" },
-  "properties": {
-    "uuid": {
-      "type": "string",
-      "index": "not_analyzed"
-    },
-    "jobName": {
-      "type": "string",
-      "index": "not_analyzed"
-    },
-    "userName": {
-      "type": "string",
-      "index": "not_analyzed"
-    },
-    "status": {
-      "type": "object",
       "properties": {
-        "jobStatusMap": {
-          "type": "object",
-          "enabled": false
+        "id": {
+          "type": "keyword"
         },
-        "endTime": {
-          "type": "date"
+        "jobName": {
+          "type": "keyword",
+          "index": true
         },
-        "startTime": {
-          "type": "date"
+        "optimized": {
+          "properties": {
+            "id": {
+              "type": "keyword"
+            },
+            "plan": {
+              "type": "object",
+              "enabled": false
+            },
+            "svg": {
+              "type": "text",
+              "index": false
+            }
+          }
         },
-        "heartbeatTime": {
-          "type": "date"
+        "scripts": {
+          "properties": {
+            "id": {
+              "type": "keyword"
+            },
+            "script": {
+              "type": "text"
+            }
+          }
         },
-        "progress": {
-          "type": "integer"
+        "status": {
+          "properties": {
+            "endTime": {
+              "type": "date",
+              "format": "epoch_millis"
+            },
+            "heartbeatTime": {
+              "type": "date",
+              "format": "epoch_millis"
+            },
+            "id": {
+              "type": "keyword"
+            },
+            "jobStatusMap": {
+              "type": "object",
+              "enabled": false
+            },
+            "progress": {
+              "type": "integer"
+            },
+            "startTime": {
+              "type": "date",
+              "format": "epoch_millis"
+            },
+            "statusText": {
+              "type": "keyword",
+              "index": true
+            }
+          }
         },
-        "statusText": {
-          "type": "string",
-          "index": "not_analyzed"
+        "unoptimized": {
+          "properties": {
+            "id": {
+              "type": "keyword"
+            },
+            "plan": {
+              "type": "object",
+              "enabled": false
+            },
+            "svg": {
+              "type": "text",
+              "index": false
+            }
+          }
+        },
+        "userName": {
+          "type": "keyword",
+          "index": true
+        },
+        "uuid": {
+          "type": "keyword",
+          "index": true
         }
       }
-    },
-    "scripts": {
-      "type": "object",
-      "properties": {
-        "script": {
-          "type": "string"
-        }
-      }
-    },
-    "optimized": {
-      "type": "object",
-      "properties": {
-        "plan": {
-          "type": "object",
-          "enabled": false
-        },
-        "svg": {
-          "type": "string",
-          "index": "no"
-        }
-      }
-    },
-    "unoptimized": {
-      "type": "object",
-      "properties": {
-        "plan": {
-          "type": "object",
-          "enabled": false
-        },
-        "svg": {
-          "type": "string",
-          "index": "no"
-        }
-      }
-    }
-  }
 }

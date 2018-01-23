@@ -1,9 +1,11 @@
 import 'java.util.Properties'
-import 'org.elasticsearch.node.NodeBuilder'
+import 'java.net.InetAddress'
+import 'org.elasticsearch.node.Node'
 import 'org.elasticsearch.search.sort.SortOrder'
 import 'org.elasticsearch.index.query.QueryBuilders'
-import 'org.elasticsearch.index.query.FilterBuilders'
-import 'org.elasticsearch.common.settings.ImmutableSettings'
+import 'org.elasticsearch.common.settings.Settings'
+import 'org.elasticsearch.client.transport.TransportClient'
+import 'org.elasticsearch.transport.client.PreBuiltTransportClient'
 import 'org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest'
 
 class ElasticSearchAdaptor
@@ -28,13 +30,16 @@ class ElasticSearchAdaptor
   end
 
   def dev_client
-    es_settings = ImmutableSettings.settings_builder
+    es_settings = Settings.builder()
       .put("node.master", true)
       .put("node.data", true)
-      .put("index.store.type", "ram")
       .put("path.data", ".es-data")
-    @node = NodeBuilder.node_builder.settings(es_settings).node
-    node.client
+      .put("path.home", ".es-home")
+      .put("transport.type", "local")
+      .put("http.enabled", "false")
+      .build()
+      @node = Node.new(es_settings).start()
+      node.client
   end
   
   
@@ -73,20 +78,21 @@ class ElasticSearchAdaptor
       es.start
       return es.client
     elsif (discovery_type == 'zen')
-      es_settings = ImmutableSettings.settings_builder
+      es_settings = Settings.builder()
         .put("cluster.name", conf.get("cluster.name").to_s)
         .put("node.master", false)
         .put("node.data", false)
-      @node = NodeBuilder.node_builder.settings(es_settings).node
+	.build()
+      @node = Node.new(es_settings).start()
       return @node.client
     else
       urls = conf.get("elasticsearch.urls").to_s.split(",")
       addresses = urls.map do |url|
         url = url.split(":", 2)
-        InetSocketTransportAddress.new(url.first, url.last.to_i)
+        InetSocketTransportAddress.new(InetAddress.getByName(url.first), url.last.to_i)
       end
-      es_settings = ImmutableSettings.settings_builder.put("cluster.name", conf.get_property("cluster.name"))
-      return addresses.inject(TransportClient.new(es_settings)) {|c, a| c.add_transport_address(a) }
+      es_settings = Settings.builder().put("cluster.name", conf.get_property("cluster.name")).build()
+      return addresses.inject(PreBuiltTransportClient.new(es_settings)) {|c, a| c.add_transport_address(a) }
     end        
   end
 
@@ -228,21 +234,21 @@ class ElasticSearchAdaptor
     fields = [
       "name", "view","template"
     ]
-    
+        
     builder = client.prepare_search(@index)
       .set_types('node_template')
-      .add_fields(*fields)
+      .set_fetch_source(fields.to_java(:string), [].to_java(:string))
 
     begin
       response = builder.execute.action_get
       
       hits = response.get_hits
       ret = hits.hits.map do |hit|
-        hit_fields = hit.get_fields
+        hit_fields = hit.get_source
         {
-          :name     => hit_fields.get("name").value,
-          :view     => hit_fields.get("view").value,
-          :template => hit_fields.get("template").value
+          :name     => hit_fields.get("name").to_s,
+          :view     => hit_fields.get("view").to_s,
+          :template => hit_fields.get("template").to_s
         }
       end
       
@@ -270,7 +276,7 @@ class ElasticSearchAdaptor
 
     builder = client.prepare_search(@index)
       .set_types('graph')
-      .add_fields(*fields)
+      .set_fetch_source(fields.to_java(:string), [].to_java(:string))
 
     if (params[:search] && !params[:search].empty?)
       q = QueryBuilders.boolQuery()
@@ -288,31 +294,30 @@ class ElasticSearchAdaptor
 
     if (params[:status] && !params[:status].empty?) # status filter
       q = QueryBuilders.match_query("status.statusText", params[:status])
-      builder = builder.set_post_filter(FilterBuilders.query_filter(q))
+      builder = builder.set_post_filter(QueryBuilders.query_filter(q))
     end
-    
+
     begin
       response = builder.set_from(offset).set_size(max)
         .add_sort(sort, order)
         .execute.action_get
-      
       hits = response.get_hits
       ret = hits.hits.map do |hit|
-        hit_fields   = hit.get_fields
-        progress     = hit_fields.get("status.progress")
-        status_text  = hit_fields.get("status.statusText")
-        user         = hit_fields.get("user")
+        hit_fields   = hit.get_source
+        status = hit_fields.get("status") || java.util.HashMap.new()
+        progress     = status.get("progress").to_i
+        status_text  = status.get("statusText").to_s
+        user         = hit_fields.get("user").to_s
         {          
-          :id          => hit_fields.get("id").value,
-          :name        => hit_fields.get("name").value,
-          :user        => (user ? user.value : "Unknown"),
-          :progress    => (progress ? progress.value : 0),
-          :status_text => (status_text ? status_text.value : "running"),
-          :created_at  => hit_fields.get("created_at").value,
-          :updated_at  => hit_fields.get("updated_at").value
+          :id          => hit_fields.get("id").to_s,
+          :name        => hit_fields.get("name").to_s,
+          :user        => (user ? user: "Unknown"),
+          :progress    => (progress ? progress : 0),
+          :status_text => (status_text ? status_text : "running"),
+          :created_at  => hit_fields.get("created_at").to_i,
+          :updated_at  => hit_fields.get("updated_at").to_i
         }                      
       end
-      
       return {:jobs => ret, :jobsTotal => hits.get_total_hits}
     rescue => e
       $stderr.puts("Error trying to list graphs: [#{$!}]")
@@ -350,7 +355,7 @@ class ElasticSearchAdaptor
 
     builder = client.prepare_search(@index)
       .set_types('plan')
-      .add_fields(*fields)
+      .set_fetch_source(fields.to_java(:string), [].to_java(:string))
 
     if (params[:search] && !params[:search].empty?)
       q = QueryBuilders.boolQuery()
@@ -368,7 +373,7 @@ class ElasticSearchAdaptor
     
     if (params[:status] && !params[:status].empty?) # status filter
       q = QueryBuilders.match_query("status.statusText", params[:status])
-      builder = builder.set_post_filter(FilterBuilders.query_filter(q))
+      builder = builder.set_post_filter(QueryBuilders.query_filter(q))
     end
 
     begin
@@ -378,18 +383,19 @@ class ElasticSearchAdaptor
       
       hits = response.get_hits
       ret = hits.hits.map do |hit|
-        hit_fields   = hit.get_fields
+        hit_fields   = hit.get_source
+        status = hit_fields.get("status") || java.util.HashMap.new()
         {
-          :userName => hit_fields.get("userName").value,
-          :uuid     => hit_fields.get("uuid").value,
-          :jobName  => hit_fields.get("jobName").value,
-          :progress => hit_fields.get("status.progress").value,
+          :userName => hit_fields.get("userName").to_s,
+          :uuid     => hit_fields.get("uuid").to_s,
+          :jobName  => hit_fields.get("jobName").to_s,
+          :progress => status.get("progress").to_i,
           :status   => {
-            :name     => hit_fields.get("status.statusText").value,
+            :name     => status.get("statusText").to_s,
             :enumType => "com.netflix.lipstick.model.P2jPlanStatus$StatusText"
           },
-          :heartbeatTime => hit_fields.get("status.heartbeatTime").value,
-          :startTime     => hit_fields.get("status.startTime").value
+          :heartbeatTime => status.get("heartbeatTime").to_i,
+          :startTime     => status.get("startTime").to_i
         }                      
       end
       
