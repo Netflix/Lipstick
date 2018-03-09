@@ -1,66 +1,32 @@
-import nl.javadude.gradle.plugins.license.License
+plugins {
+  id 'nebula.netflixoss' version '2.2.9'
+}
+
 import java.text.SimpleDateFormat
 
 ext.githubProjectName = "Lipstick"
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
+subprojects {
+    apply plugin: 'nebula.netflixoss'
+    apply plugin: 'java'
 
-    dependencies {
-        classpath('nl.javadude.gradle.plugins:license-gradle-plugin:0.6.0') {
-            exclude module: 'guava'
-        }
-        classpath 'com.google.guava:guava:12.0'
-    }
-    apply from: file('gradle/buildscript.gradle'), to: buildscript
-}
+    sourceCompatibility = 1.7
+    targetCompatibility = 1.7
 
-allprojects {
     repositories {
-        mavenCentral()
+        jcenter()
     }
     group = 'com.netflix.lipstick'
-}
 
-apply from: file('gradle/release.gradle')
+    license {
+      exclude '**/*.json'
+      exclude '**/*.pig'
+    }
+}
 
 task('show-version') {
     doLast {
         println version
-    }
-}
-
-apply plugin: 'license'
-
-task(licensesAll, type: License) {
-    check = false
-    skipExistingHeaders = true
-    source '.'
-    include 'lipstick-console/src/**/*.java'
-    include 'lipstick-server/app/**/*.rb'
-    include 'lipstick-server/app/public/js/tossboss*.js'
-    include 'lipstick-server/app/public/js/workflow*.js'
-    include 'lipstick-server/app/public/js/workflow/**/*.js'
-    include 'lipstick-server/app/public/tossboss*/js/*.js'
-    include 'lipstick-server/app/public/*.html'
-    include 'lipstick-server/app/public/tossboss*/*.html'
-    include 'lipstick-server/app/public/tossboss*/css/*.css'
-    include 'scripts/**'
-    include 'test/integration/**'
-    include 'test/unit/**'
-    include 'lipstick-app/css/**'
-    include 'lipstick-app/js/**'
-    exclude '**/*.json'
-}
-
-license {
-    header rootProject.file('codequality/HEADER')
-    ext.year = Calendar.getInstance().get(Calendar.YEAR)
-    mapping {
-        groovy='SLASHSTAR_STYLE'
-        gsp='DYNASCRIPT_STYLE'
     }
 }
 
@@ -84,10 +50,21 @@ task('clean-expanded', type:Delete) {
 }
 
 project(':lipstick-server') {
+  license {
+    include '**/*.rb'
+    include 'app/public/js/tossboss*.js'
+    include 'app/public/js/workflow*.js'
+    include 'app/public/js/workflow/**/*.js'
+    include 'app/public/tossboss*/js/*.js'
+    include 'app/public/*.html'
+    include 'app/public/tossboss*/*.html'
+    include 'app/public/tossboss*/css/*.css'
+  }
 
-  apply from: file('../gradle/maven.gradle')
-  apply from: file('../gradle/convention.gradle')
-  
+  task licenseServer(type: nl.javadude.gradle.plugins.license.License) {
+    source = fileTree(dir: 'app')
+  }
+
   dependencies {
   
     runtime('org.apache.pig:pig:0.13.0:h2') {
@@ -209,8 +186,6 @@ project(':lipstick-server') {
 }
 
 project(':lipstick-console') {
-    apply plugin: 'eclipse'
-    apply from: file('../gradle/convention.gradle')
 
     configurations {
         includeInJar
@@ -325,8 +300,6 @@ project(':lipstick-console') {
         pigInJar pigJar
         hadoopInJar hadoopJar
     }
-
-	apply from: file('../gradle/maven.gradle')
 
     task('buildinfo', type:Copy) {
         group = "Lipstick"
